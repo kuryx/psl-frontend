@@ -108,9 +108,9 @@ export default function Register() {
               value={form.role}
               onChange={handleChange}
             >
-              <MenuItem value="ADMIN">Administrador</MenuItem>
-              <MenuItem value="MEDICO">Evaluador médico</MenuItem>
-              <MenuItem value="USUARIO">Usuario</MenuItem>
+              <MenuItem value="Administrador">Administrador</MenuItem>
+              <MenuItem value="Médico evaluador">Médico evaluador</MenuItem>
+              <MenuItem value="Usuario">Usuario</MenuItem>
             </TextField>
 
             <TextField
