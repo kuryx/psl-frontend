@@ -7,21 +7,24 @@ import EvaluationsList from "./pages/EvaluationsList";
 import EvaluationDetail from "./pages/EvaluationDetail";
 import EditEvaluation from "./pages/EditEvaluation";
 import ProtectedRoute from "./routes/ProtectedRoute";
+import Layout from "./components/Layout";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Rutas públicas */}
+        {/* Rutas públicas (sin Layout) */}
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Rutas protegidas */}
+        {/* Rutas protegidas (con Layout y Sidebar) */}
         <Route
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <Layout>
+                <Dashboard />
+              </Layout>
             </ProtectedRoute>
           }
         />
@@ -30,7 +33,9 @@ function App() {
           path="/evaluations/new"
           element={
             <ProtectedRoute>
-              <NewEvaluation />
+              <Layout>
+                <NewEvaluation />
+              </Layout>
             </ProtectedRoute>
           }
         />
@@ -39,7 +44,9 @@ function App() {
           path="/evaluations/:id/edit"
           element={
             <ProtectedRoute>
-              <EditEvaluation />
+              <Layout>
+                <EditEvaluation />
+              </Layout>
             </ProtectedRoute>
           }
         />
@@ -48,7 +55,9 @@ function App() {
           path="/evaluations"
           element={
             <ProtectedRoute>
-              <EvaluationsList />
+              <Layout>
+                <EvaluationsList />
+              </Layout>
             </ProtectedRoute>
           }
         />
@@ -57,7 +66,9 @@ function App() {
           path="/evaluations/:id"
           element={
             <ProtectedRoute>
-              <EvaluationDetail />
+              <Layout>
+                <EvaluationDetail />
+              </Layout>
             </ProtectedRoute>
           }
         />

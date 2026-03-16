@@ -19,7 +19,6 @@ import {
   CircularProgress,
   Alert,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -63,7 +62,7 @@ export default function EvaluationsList() {
     if (window.confirm("¿Estás seguro de eliminar esta evaluación?")) {
       try {
         await eliminarEvaluacion(id);
-        cargarEvaluaciones(); // Recargar lista
+        cargarEvaluaciones();
       } catch (error) {
         alert("Error al eliminar evaluación");
       }
@@ -92,19 +91,12 @@ export default function EvaluationsList() {
   };
 
   return (
-    <Container maxWidth="lg">
-      <Paper elevation={3} sx={{ mt: 4, p: 4, mb: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Paper elevation={3} sx={{ p: 4 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Box display="flex" alignItems="center">
-            <Button
-              startIcon={<ArrowBackIcon />}
-              onClick={() => navigate("/dashboard")}
-              sx={{ mr: 2 }}
-            >
-              Volver
-            </Button>
-            <Typography variant="h5">Historial de Evaluaciones</Typography>
-          </Box>
+          <Typography variant="h5" fontWeight="bold">
+            Historial de Evaluaciones
+          </Typography>
 
           <TextField
             select

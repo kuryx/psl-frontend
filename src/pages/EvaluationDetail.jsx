@@ -14,7 +14,6 @@ import {
   Card,
   CardContent,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
@@ -86,7 +85,7 @@ export default function EvaluationDetail() {
 
   if (loading) {
     return (
-      <Container maxWidth="md">
+      <Container maxWidth="md" sx={{ py: 4 }}>
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
           <CircularProgress />
         </Box>
@@ -96,32 +95,22 @@ export default function EvaluationDetail() {
 
   if (error || !evaluacion) {
     return (
-      <Container maxWidth="md">
-        <Paper elevation={3} sx={{ mt: 4, p: 4 }}>
+      <Container maxWidth="md" sx={{ py: 4 }}>
+        <Paper elevation={3} sx={{ p: 4 }}>
           <Alert severity="error">{error || "Evaluación no encontrada"}</Alert>
-          <Button
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate("/evaluations")}
-            sx={{ mt: 2 }}
-          >
-            Volver al historial
-          </Button>
         </Paper>
       </Container>
     );
   }
 
   return (
-    <Container maxWidth="md">
-      <Paper elevation={3} sx={{ mt: 4, p: 4, mb: 4 }}>
+    <Container maxWidth="md" sx={{ py: 4 }}>
+      <Paper elevation={3} sx={{ p: 4 }}>
         {/* Header con botones */}
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Button
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate("/evaluations")}
-          >
-            Volver al historial
-          </Button>
+          <Typography variant="h5" fontWeight="bold">
+            Detalle de Evaluación
+          </Typography>
 
           <Box display="flex" gap={2}>
             <Button
@@ -151,7 +140,9 @@ export default function EvaluationDetail() {
         </Box>
 
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h4">Evaluación PCL</Typography>
+          <Typography variant="h6" color="text.secondary">
+            Evaluación PCL
+          </Typography>
           <Chip
             label={evaluacion.estado}
             color={getEstadoColor(evaluacion.estado)}
