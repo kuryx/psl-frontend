@@ -104,12 +104,12 @@ export default function EvaluationDetail() {
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       <Paper elevation={3} sx={{ p: 4 }}>
         {/* Header con botones */}
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <Typography variant="h5" fontWeight="bold">
-            Detalle de Evaluación
+            Detalle de Evaluación PCL
           </Typography>
 
           <Box display="flex" gap={2}>
@@ -141,7 +141,7 @@ export default function EvaluationDetail() {
 
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <Typography variant="h6" color="text.secondary">
-            Evaluación PCL
+            {evaluacion.paciente.nombreCompleto}
           </Typography>
           <Chip
             label={evaluacion.estado}
@@ -152,11 +152,147 @@ export default function EvaluationDetail() {
 
         <Divider sx={{ mb: 3 }} />
 
-        {/* DATOS DEL PACIENTE */}
+        {/* 1. INFORMACIÓN DEL DICTAMEN */}
+        {evaluacion.informacionDictamen && (
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom color="primary">
+                📋 Información del Dictamen
+              </Typography>
+              <Grid container spacing={2}>
+                {evaluacion.informacionDictamen.fechaDictamen && (
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Fecha de Dictamen
+                    </Typography>
+                    <Typography variant="body1">
+                      {formatearFecha(evaluacion.informacionDictamen.fechaDictamen)}
+                    </Typography>
+                  </Grid>
+                )}
+                {evaluacion.informacionDictamen.numeroDictamen && (
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Número de Dictamen
+                    </Typography>
+                    <Typography variant="body1">
+                      {evaluacion.informacionDictamen.numeroDictamen}
+                    </Typography>
+                  </Grid>
+                )}
+                {evaluacion.informacionDictamen.tipoCalificacion && (
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Tipo de Calificación
+                    </Typography>
+                    <Typography variant="body1">
+                      {evaluacion.informacionDictamen.tipoCalificacion}
+                    </Typography>
+                  </Grid>
+                )}
+                {evaluacion.informacionDictamen.tipoSolicitante && (
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Tipo Solicitante
+                    </Typography>
+                    <Typography variant="body1">
+                      {evaluacion.informacionDictamen.tipoSolicitante}
+                    </Typography>
+                  </Grid>
+                )}
+                {evaluacion.informacionDictamen.nombreSolicitante && (
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Nombre Solicitante
+                    </Typography>
+                    <Typography variant="body1">
+                      {evaluacion.informacionDictamen.nombreSolicitante}
+                    </Typography>
+                  </Grid>
+                )}
+              </Grid>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 2. ENTIDAD CALIFICADORA */}
+        {evaluacion.entidadCalificadora && (
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom color="primary">
+                🏢 Entidad Calificadora
+              </Typography>
+              <Grid container spacing={2}>
+                {evaluacion.entidadCalificadora.nombre && (
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Nombre de la Entidad
+                    </Typography>
+                    <Typography variant="body1">
+                      {evaluacion.entidadCalificadora.nombre}
+                    </Typography>
+                  </Grid>
+                )}
+                {evaluacion.entidadCalificadora.identificacion && (
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Identificación
+                    </Typography>
+                    <Typography variant="body1">
+                      {evaluacion.entidadCalificadora.identificacion}
+                    </Typography>
+                  </Grid>
+                )}
+                {evaluacion.entidadCalificadora.direccion && (
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Dirección
+                    </Typography>
+                    <Typography variant="body1">
+                      {evaluacion.entidadCalificadora.direccion}
+                    </Typography>
+                  </Grid>
+                )}
+                {evaluacion.entidadCalificadora.ciudad && (
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Ciudad
+                    </Typography>
+                    <Typography variant="body1">
+                      {evaluacion.entidadCalificadora.ciudad}
+                    </Typography>
+                  </Grid>
+                )}
+                {evaluacion.entidadCalificadora.telefono && (
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Teléfono
+                    </Typography>
+                    <Typography variant="body1">
+                      {evaluacion.entidadCalificadora.telefono}
+                    </Typography>
+                  </Grid>
+                )}
+                {evaluacion.entidadCalificadora.correoElectronico && (
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Correo Electrónico
+                    </Typography>
+                    <Typography variant="body1">
+                      {evaluacion.entidadCalificadora.correoElectronico}
+                    </Typography>
+                  </Grid>
+                )}
+              </Grid>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 3. DATOS DEL PACIENTE (COMPLETOS) */}
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Datos del Paciente
+            <Typography variant="h6" gutterBottom color="primary">
+              👤 Datos del Paciente
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
@@ -175,7 +311,7 @@ export default function EvaluationDetail() {
                   {evaluacion.paciente.cedula}
                 </Typography>
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <Typography variant="body2" color="text.secondary">
                   Edad
                 </Typography>
@@ -183,7 +319,17 @@ export default function EvaluationDetail() {
                   {evaluacion.paciente.edad} años
                 </Typography>
               </Grid>
-              <Grid item xs={12} md={6}>
+              {evaluacion.paciente.genero && (
+                <Grid item xs={12} md={4}>
+                  <Typography variant="body2" color="text.secondary">
+                    Género
+                  </Typography>
+                  <Typography variant="body1">
+                    {evaluacion.paciente.genero}
+                  </Typography>
+                </Grid>
+              )}
+              <Grid item xs={12} md={4}>
                 <Typography variant="body2" color="text.secondary">
                   Ocupación
                 </Typography>
@@ -191,15 +337,160 @@ export default function EvaluationDetail() {
                   {evaluacion.paciente.ocupacion}
                 </Typography>
               </Grid>
+              
+              {evaluacion.paciente.direccion && (
+                <Grid item xs={12} md={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Dirección
+                  </Typography>
+                  <Typography variant="body1">
+                    {evaluacion.paciente.direccion}
+                  </Typography>
+                </Grid>
+              )}
+              {evaluacion.paciente.ciudad && (
+                <Grid item xs={12} md={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Ciudad
+                  </Typography>
+                  <Typography variant="body1">
+                    {evaluacion.paciente.ciudad}
+                  </Typography>
+                </Grid>
+              )}
+              
+              {evaluacion.paciente.estadoCivil && (
+                <Grid item xs={12} md={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Estado Civil
+                  </Typography>
+                  <Typography variant="body1">
+                    {evaluacion.paciente.estadoCivil}
+                  </Typography>
+                </Grid>
+              )}
+              {evaluacion.paciente.escolaridad && (
+                <Grid item xs={12} md={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Escolaridad
+                  </Typography>
+                  <Typography variant="body1">
+                    {evaluacion.paciente.escolaridad}
+                  </Typography>
+                </Grid>
+              )}
+
+              {/* Sistema de Seguridad Social */}
+              {(evaluacion.paciente.eps || evaluacion.paciente.afp || evaluacion.paciente.arl) && (
+                <>
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" sx={{ mt: 2, fontWeight: 'bold' }}>
+                      Sistema de Seguridad Social
+                    </Typography>
+                  </Grid>
+                  {evaluacion.paciente.eps && (
+                    <Grid item xs={12} md={4}>
+                      <Typography variant="body2" color="text.secondary">
+                        EPS
+                      </Typography>
+                      <Typography variant="body1">
+                        {evaluacion.paciente.eps}
+                      </Typography>
+                    </Grid>
+                  )}
+                  {evaluacion.paciente.afp && (
+                    <Grid item xs={12} md={4}>
+                      <Typography variant="body2" color="text.secondary">
+                        AFP
+                      </Typography>
+                      <Typography variant="body1">
+                        {evaluacion.paciente.afp}
+                      </Typography>
+                    </Grid>
+                  )}
+                  {evaluacion.paciente.arl && (
+                    <Grid item xs={12} md={4}>
+                      <Typography variant="body2" color="text.secondary">
+                        ARL
+                      </Typography>
+                      <Typography variant="body1">
+                        {evaluacion.paciente.arl}
+                      </Typography>
+                    </Grid>
+                  )}
+                </>
+              )}
             </Grid>
           </CardContent>
         </Card>
+        {/* 4. ANTECEDENTES LABORALES */}
+        {evaluacion.antecedentesLaborales && (
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom color="primary">
+                💼 Antecedentes Laborales
+              </Typography>
+              <Grid container spacing={2}>
+                {evaluacion.antecedentesLaborales.tipoVinculacion && (
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Tipo de Vinculación
+                    </Typography>
+                    <Typography variant="body1">
+                      {evaluacion.antecedentesLaborales.tipoVinculacion}
+                    </Typography>
+                  </Grid>
+                )}
+                {evaluacion.antecedentesLaborales.empresa && (
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Empresa
+                    </Typography>
+                    <Typography variant="body1">
+                      {evaluacion.antecedentesLaborales.empresa}
+                    </Typography>
+                  </Grid>
+                )}
+                {evaluacion.antecedentesLaborales.ocupacion && (
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Cargo/Ocupación
+                    </Typography>
+                    <Typography variant="body1">
+                      {evaluacion.antecedentesLaborales.ocupacion}
+                    </Typography>
+                  </Grid>
+                )}
+                {evaluacion.antecedentesLaborales.antiguedad && (
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Antigüedad
+                    </Typography>
+                    <Typography variant="body1">
+                      {evaluacion.antecedentesLaborales.antiguedad}
+                    </Typography>
+                  </Grid>
+                )}
+                {evaluacion.antecedentesLaborales.descripcionCargos && (
+                  <Grid item xs={12}>
+                    <Typography variant="body2" color="text.secondary">
+                      Descripción de Cargos
+                    </Typography>
+                    <Typography variant="body1" sx={{ whiteSpace: "pre-wrap" }}>
+                      {evaluacion.antecedentesLaborales.descripcionCargos}
+                    </Typography>
+                  </Grid>
+                )}
+              </Grid>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* HISTORIAL CLÍNICO */}
+        {/* 5. HISTORIAL CLÍNICO */}
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Historial Clínico
+            <Typography variant="h6" gutterBottom color="primary">
+              📋 Historial Clínico
             </Typography>
             <Typography variant="body1" sx={{ whiteSpace: "pre-wrap" }}>
               {evaluacion.historialClinico}
@@ -207,11 +498,11 @@ export default function EvaluationDetail() {
           </CardContent>
         </Card>
 
-        {/* DIAGNÓSTICOS */}
+        {/* 6. DIAGNÓSTICOS */}
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Diagnósticos (CIE-11)
+            <Typography variant="h6" gutterBottom color="primary">
+              🏥 Diagnósticos (CIE-11)
             </Typography>
 
             <Box mb={2}>
@@ -245,16 +536,16 @@ export default function EvaluationDetail() {
           </CardContent>
         </Card>
 
-        {/* PORCENTAJES */}
+        {/* 7. PORCENTAJES */}
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Porcentajes de Pérdida
+            <Typography variant="h6" gutterBottom color="primary">
+              📊 Porcentajes de Pérdida
             </Typography>
             <Grid container spacing={3}>
               <Grid item xs={6} md={3}>
                 <Box textAlign="center">
-                  <Typography variant="h4" color="primary">
+                  <Typography variant="h4" color="primary" fontWeight="bold">
                     {evaluacion.porcentajePCL}%
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -265,7 +556,7 @@ export default function EvaluationDetail() {
               {evaluacion.deficiencia && (
                 <Grid item xs={6} md={3}>
                   <Box textAlign="center">
-                    <Typography variant="h4" color="info.main">
+                    <Typography variant="h4" color="info.main" fontWeight="bold">
                       {evaluacion.deficiencia}%
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -277,7 +568,7 @@ export default function EvaluationDetail() {
               {evaluacion.discapacidad && (
                 <Grid item xs={6} md={3}>
                   <Box textAlign="center">
-                    <Typography variant="h4" color="warning.main">
+                    <Typography variant="h4" color="warning.main" fontWeight="bold">
                       {evaluacion.discapacidad}%
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -289,7 +580,7 @@ export default function EvaluationDetail() {
               {evaluacion.minusvalia && (
                 <Grid item xs={6} md={3}>
                   <Box textAlign="center">
-                    <Typography variant="h4" color="error.main">
+                    <Typography variant="h4" color="error.main" fontWeight="bold">
                       {evaluacion.minusvalia}%
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -302,12 +593,12 @@ export default function EvaluationDetail() {
           </CardContent>
         </Card>
 
-        {/* OBSERVACIONES Y RECOMENDACIONES */}
+        {/* 8. OBSERVACIONES Y RECOMENDACIONES */}
         {(evaluacion.observaciones || evaluacion.recomendaciones) && (
           <Card sx={{ mb: 3 }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Observaciones y Recomendaciones
+              <Typography variant="h6" gutterBottom color="primary">
+                💬 Observaciones y Recomendaciones
               </Typography>
 
               {evaluacion.observaciones && (
@@ -335,11 +626,11 @@ export default function EvaluationDetail() {
           </Card>
         )}
 
-        {/* INFORMACIÓN ADICIONAL */}
+        {/* 9. INFORMACIÓN DE LA EVALUACIÓN */}
         <Card>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Información de la Evaluación
+            <Typography variant="h6" gutterBottom color="primary">
+              ℹ️ Información de la Evaluación
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
