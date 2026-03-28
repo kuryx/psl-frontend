@@ -22,7 +22,9 @@ import {
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import { listarEvaluaciones, eliminarEvaluacion } from "../services/evaluationService";
+import { generarPDFDictamen } from "../utils/pdfGenerator";
 
 // Función para limpiar HTML
 const limpiarHTML = (texto) => {
@@ -147,7 +149,7 @@ export default function EvaluationsList() {
                   <TableCell align="center">PCL %</TableCell>
                   <TableCell>Fecha</TableCell>
                   <TableCell>Estado</TableCell>
-                  <TableCell align="center">Acciones</TableCell>
+                  <TableCell align="center" width="180">Acciones</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -178,6 +180,7 @@ export default function EvaluationsList() {
                         color="primary"
                         onClick={() => navigate(`/evaluations/${evaluacion._id}`)}
                         title="Ver detalles"
+                        size="small"
                       >
                         <VisibilityIcon />
                       </IconButton>
@@ -185,13 +188,23 @@ export default function EvaluationsList() {
                         color="info"
                         onClick={() => navigate(`/evaluations/${evaluacion._id}/edit`)}
                         title="Editar"
+                        size="small"
                       >
                         <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        color="secondary"
+                        onClick={() => generarPDFDictamen(evaluacion)}
+                        title="Descargar PDF"
+                        size="small"
+                      >
+                        <PictureAsPdfIcon />
                       </IconButton>
                       <IconButton
                         color="error"
                         onClick={() => handleEliminar(evaluacion._id)}
                         title="Eliminar"
+                        size="small"
                       >
                         <DeleteIcon />
                       </IconButton>

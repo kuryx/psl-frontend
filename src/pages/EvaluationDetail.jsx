@@ -17,12 +17,14 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { obtenerEvaluacion, eliminarEvaluacion } from "../services/evaluationService";
+import { generarPDFDictamen } from "../utils/pdfGenerator";
 
 // Función para limpiar HTML
 const limpiarHTML = (texto) => {
   if (!texto) return "";
-  const doc = new DOMParser().parseFromString(texto, 'text/html');
+  const doc = new DOMParser().parseFromString(texto, "text/html");
   return doc.body.textContent || "";
 };
 
@@ -106,12 +108,20 @@ export default function EvaluationDetail() {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Paper elevation={3} sx={{ p: 4 }}>
-        {/* Header con botones */}
+        {/* Header con botón volver y botones de acción */}
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h5" fontWeight="bold">
-            Detalle de Evaluación PCL
-          </Typography>
-
+          <Box display="flex" alignItems="center" gap={2}>
+            <Button
+              startIcon={<ArrowBackIcon />}
+              onClick={() => navigate("/evaluations")}
+              variant="outlined"
+            >
+              Volver
+            </Button>
+            <Typography variant="h5" fontWeight="bold">
+              Detalle de Evaluación PCL
+            </Typography>
+          </Box>
           <Box display="flex" gap={2}>
             <Button
               variant="contained"
@@ -124,9 +134,10 @@ export default function EvaluationDetail() {
             <Button
               variant="outlined"
               startIcon={<PictureAsPdfIcon />}
-              onClick={() => alert("Generación de PDF próximamente")}
+              onClick={() => generarPDFDictamen(evaluacion)}
+              color="secondary"
             >
-              PDF
+              Descargar PDF
             </Button>
             <Button
               variant="contained"
@@ -143,11 +154,7 @@ export default function EvaluationDetail() {
           <Typography variant="h6" color="text.secondary">
             {evaluacion.paciente.nombreCompleto}
           </Typography>
-          <Chip
-            label={evaluacion.estado}
-            color={getEstadoColor(evaluacion.estado)}
-            size="medium"
-          />
+          <Chip label={evaluacion.estado} color={getEstadoColor(evaluacion.estado)} size="medium" />
         </Box>
 
         <Divider sx={{ mb: 3 }} />
@@ -228,9 +235,7 @@ export default function EvaluationDetail() {
                     <Typography variant="body2" color="text.secondary">
                       Nombre de la Entidad
                     </Typography>
-                    <Typography variant="body1">
-                      {evaluacion.entidadCalificadora.nombre}
-                    </Typography>
+                    <Typography variant="body1">{evaluacion.entidadCalificadora.nombre}</Typography>
                   </Grid>
                 )}
                 {evaluacion.entidadCalificadora.identificacion && (
@@ -258,9 +263,7 @@ export default function EvaluationDetail() {
                     <Typography variant="body2" color="text.secondary">
                       Ciudad
                     </Typography>
-                    <Typography variant="body1">
-                      {evaluacion.entidadCalificadora.ciudad}
-                    </Typography>
+                    <Typography variant="body1">{evaluacion.entidadCalificadora.ciudad}</Typography>
                   </Grid>
                 )}
                 {evaluacion.entidadCalificadora.telefono && (
@@ -299,53 +302,41 @@ export default function EvaluationDetail() {
                 <Typography variant="body2" color="text.secondary">
                   Nombre Completo
                 </Typography>
-                <Typography variant="body1">
-                  {evaluacion.paciente.nombreCompleto}
-                </Typography>
+                <Typography variant="body1">{evaluacion.paciente.nombreCompleto}</Typography>
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="body2" color="text.secondary">
                   Cédula
                 </Typography>
-                <Typography variant="body1">
-                  {evaluacion.paciente.cedula}
-                </Typography>
+                <Typography variant="body1">{evaluacion.paciente.cedula}</Typography>
               </Grid>
               <Grid item xs={12} md={4}>
                 <Typography variant="body2" color="text.secondary">
                   Edad
                 </Typography>
-                <Typography variant="body1">
-                  {evaluacion.paciente.edad} años
-                </Typography>
+                <Typography variant="body1">{evaluacion.paciente.edad} años</Typography>
               </Grid>
               {evaluacion.paciente.genero && (
                 <Grid item xs={12} md={4}>
                   <Typography variant="body2" color="text.secondary">
                     Género
                   </Typography>
-                  <Typography variant="body1">
-                    {evaluacion.paciente.genero}
-                  </Typography>
+                  <Typography variant="body1">{evaluacion.paciente.genero}</Typography>
                 </Grid>
               )}
               <Grid item xs={12} md={4}>
                 <Typography variant="body2" color="text.secondary">
                   Ocupación
                 </Typography>
-                <Typography variant="body1">
-                  {evaluacion.paciente.ocupacion}
-                </Typography>
+                <Typography variant="body1">{evaluacion.paciente.ocupacion}</Typography>
               </Grid>
-              
+
               {evaluacion.paciente.direccion && (
                 <Grid item xs={12} md={6}>
                   <Typography variant="body2" color="text.secondary">
                     Dirección
                   </Typography>
-                  <Typography variant="body1">
-                    {evaluacion.paciente.direccion}
-                  </Typography>
+                  <Typography variant="body1">{evaluacion.paciente.direccion}</Typography>
                 </Grid>
               )}
               {evaluacion.paciente.ciudad && (
@@ -353,20 +344,16 @@ export default function EvaluationDetail() {
                   <Typography variant="body2" color="text.secondary">
                     Ciudad
                   </Typography>
-                  <Typography variant="body1">
-                    {evaluacion.paciente.ciudad}
-                  </Typography>
+                  <Typography variant="body1">{evaluacion.paciente.ciudad}</Typography>
                 </Grid>
               )}
-              
+
               {evaluacion.paciente.estadoCivil && (
                 <Grid item xs={12} md={6}>
                   <Typography variant="body2" color="text.secondary">
                     Estado Civil
                   </Typography>
-                  <Typography variant="body1">
-                    {evaluacion.paciente.estadoCivil}
-                  </Typography>
+                  <Typography variant="body1">{evaluacion.paciente.estadoCivil}</Typography>
                 </Grid>
               )}
               {evaluacion.paciente.escolaridad && (
@@ -374,9 +361,7 @@ export default function EvaluationDetail() {
                   <Typography variant="body2" color="text.secondary">
                     Escolaridad
                   </Typography>
-                  <Typography variant="body1">
-                    {evaluacion.paciente.escolaridad}
-                  </Typography>
+                  <Typography variant="body1">{evaluacion.paciente.escolaridad}</Typography>
                 </Grid>
               )}
 
@@ -384,7 +369,7 @@ export default function EvaluationDetail() {
               {(evaluacion.paciente.eps || evaluacion.paciente.afp || evaluacion.paciente.arl) && (
                 <>
                   <Grid item xs={12}>
-                    <Typography variant="subtitle2" sx={{ mt: 2, fontWeight: 'bold' }}>
+                    <Typography variant="subtitle2" sx={{ mt: 2, fontWeight: "bold" }}>
                       Sistema de Seguridad Social
                     </Typography>
                   </Grid>
@@ -393,9 +378,7 @@ export default function EvaluationDetail() {
                       <Typography variant="body2" color="text.secondary">
                         EPS
                       </Typography>
-                      <Typography variant="body1">
-                        {evaluacion.paciente.eps}
-                      </Typography>
+                      <Typography variant="body1">{evaluacion.paciente.eps}</Typography>
                     </Grid>
                   )}
                   {evaluacion.paciente.afp && (
@@ -403,9 +386,7 @@ export default function EvaluationDetail() {
                       <Typography variant="body2" color="text.secondary">
                         AFP
                       </Typography>
-                      <Typography variant="body1">
-                        {evaluacion.paciente.afp}
-                      </Typography>
+                      <Typography variant="body1">{evaluacion.paciente.afp}</Typography>
                     </Grid>
                   )}
                   {evaluacion.paciente.arl && (
@@ -413,9 +394,7 @@ export default function EvaluationDetail() {
                       <Typography variant="body2" color="text.secondary">
                         ARL
                       </Typography>
-                      <Typography variant="body1">
-                        {evaluacion.paciente.arl}
-                      </Typography>
+                      <Typography variant="body1">{evaluacion.paciente.arl}</Typography>
                     </Grid>
                   )}
                 </>
@@ -637,9 +616,7 @@ export default function EvaluationDetail() {
                 <Typography variant="body2" color="text.secondary">
                   Médico Evaluador
                 </Typography>
-                <Typography variant="body1">
-                  {evaluacion.medicoEvaluador?.name}
-                </Typography>
+                <Typography variant="body1">{evaluacion.medicoEvaluador?.name}</Typography>
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="body2" color="text.secondary">
@@ -653,17 +630,13 @@ export default function EvaluationDetail() {
                 <Typography variant="body2" color="text.secondary">
                   Fecha de Creación
                 </Typography>
-                <Typography variant="body1">
-                  {formatearFecha(evaluacion.createdAt)}
-                </Typography>
+                <Typography variant="body1">{formatearFecha(evaluacion.createdAt)}</Typography>
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="body2" color="text.secondary">
                   Última Modificación
                 </Typography>
-                <Typography variant="body1">
-                  {formatearFecha(evaluacion.updatedAt)}
-                </Typography>
+                <Typography variant="body1">{formatearFecha(evaluacion.updatedAt)}</Typography>
               </Grid>
             </Grid>
           </CardContent>

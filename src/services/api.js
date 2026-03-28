@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Crear instancia de axios
 const api = axios.create({
-  baseURL: "http://localhost:4000"
+  baseURL: "http://localhost:4000/api",
 });
 
 // ============================================
@@ -13,11 +13,9 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
-    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
     return config;
   },
   (error) => {
@@ -39,13 +37,11 @@ api.interceptors.response.use(
       // Token inválido o expirado
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      
       // Redirigir al login
       if (window.location.pathname !== "/") {
         window.location.href = "/";
       }
     }
-    
     return Promise.reject(error);
   }
 );

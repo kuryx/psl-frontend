@@ -8,6 +8,7 @@ import EvaluationDetail from "./pages/EvaluationDetail";
 import EditEvaluation from "./pages/EditEvaluation";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import Layout from "./components/Layout";
+import MiCuenta from "./pages/MiCuenta";
 
 function App() {
   return (
@@ -68,6 +69,16 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <EvaluationDetail />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/cuenta"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <MiCuenta />
               </Layout>
             </ProtectedRoute>
           }
