@@ -3,11 +3,17 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { BrowserRouter } from 'react-router-dom';
+import { PreferencesProvider } from './contexts/PreferencesContext';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <App />
+    <PreferencesProvider>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </PreferencesProvider>
   </React.StrictMode>
 );
 

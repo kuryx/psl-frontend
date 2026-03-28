@@ -15,6 +15,7 @@ import {
   Avatar,
   IconButton,
   InputAdornment,
+  MenuItem,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
@@ -22,19 +23,24 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import LockIcon from "@mui/icons-material/Lock";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import PaletteIcon from "@mui/icons-material/Palette";
+import TextFieldsIcon from "@mui/icons-material/TextFields";
+import LanguageIcon from "@mui/icons-material/Language";
 import { getCurrentUser } from "../utils/auth";
 import api from "../services/api";
+import { usePreferences } from "../contexts/PreferencesContext";
 
 export default function MiCuenta() {
   const navigate = useNavigate();
   const user = getCurrentUser();
-  
+  const { preferences, updatePreferences } = usePreferences();
+
   const [editandoPerfil, setEditandoPerfil] = useState(false);
   const [editandoPassword, setEditandoPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -73,7 +79,7 @@ export default function MiCuenta() {
       }
 
       const response = await api.put("/users/profile", perfil);
-      
+
       // Actualizar localStorage con nueva información
       const updatedUser = { ...user, ...perfil };
       localStorage.setItem("user", JSON.stringify(updatedUser));
@@ -198,11 +204,7 @@ export default function MiCuenta() {
                 Información Personal
               </Typography>
               {!editandoPerfil && (
-                <Button
-                  startIcon={<EditIcon />}
-                  onClick={() => setEditandoPerfil(true)}
-                  size="small"
-                >
+                <Button startIcon={<EditIcon />} onClick={() => setEditandoPerfil(true)} size="small">
                   Editar
                 </Button>
               )}
@@ -243,31 +245,16 @@ export default function MiCuenta() {
                 />
               </Grid>
               <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Rol"
-                  value={user?.role || "Usuario"}
-                  disabled
-                />
+                <TextField fullWidth label="Rol" value={user?.role || "Usuario"} disabled />
               </Grid>
             </Grid>
 
             {editandoPerfil && (
               <Box display="flex" gap={2} mt={3} justifyContent="flex-end">
-                <Button
-                  variant="outlined"
-                  startIcon={<CancelIcon />}
-                  onClick={handleCancelar}
-                  disabled={loading}
-                >
+                <Button variant="outlined" startIcon={<CancelIcon />} onClick={handleCancelar} disabled={loading}>
                   Cancelar
                 </Button>
-                <Button
-                  variant="contained"
-                  startIcon={<SaveIcon />}
-                  onClick={handleGuardarPerfil}
-                  disabled={loading}
-                >
+                <Button variant="contained" startIcon={<SaveIcon />} onClick={handleGuardarPerfil} disabled={loading}>
                   {loading ? "Guardando..." : "Guardar Cambios"}
                 </Button>
               </Box>
@@ -276,18 +263,14 @@ export default function MiCuenta() {
         </Card>
 
         {/* CAMBIAR CONTRASEÑA */}
-        <Card>
+        <Card sx={{ mb: 3 }}>
           <CardContent>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
               <Typography variant="h6" fontWeight="bold">
                 Seguridad
               </Typography>
               {!editandoPassword && (
-                <Button
-                  startIcon={<LockIcon />}
-                  onClick={() => setEditandoPassword(true)}
-                  size="small"
-                >
+                <Button startIcon={<LockIcon />} onClick={() => setEditandoPassword(true)} size="small">
                   Cambiar Contraseña
                 </Button>
               )}
@@ -312,10 +295,7 @@ export default function MiCuenta() {
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">
-                          <IconButton
-                            onClick={() => setShowPassword(!showPassword)}
-                            edge="end"
-                          >
+                          <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
                             {showPassword ? <VisibilityOff /> : <Visibility />}
                           </IconButton>
                         </InputAdornment>
@@ -335,10 +315,7 @@ export default function MiCuenta() {
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">
-                          <IconButton
-                            onClick={() => setShowNewPassword(!showNewPassword)}
-                            edge="end"
-                          >
+                          <IconButton onClick={() => setShowNewPassword(!showNewPassword)} edge="end">
                             {showNewPassword ? <VisibilityOff /> : <Visibility />}
                           </IconButton>
                         </InputAdornment>
@@ -357,10 +334,7 @@ export default function MiCuenta() {
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">
-                          <IconButton
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            edge="end"
-                          >
+                          <IconButton onClick={() => setShowConfirmPassword(!showConfirmPassword)} edge="end">
                             {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
                           </IconButton>
                         </InputAdornment>
@@ -381,16 +355,112 @@ export default function MiCuenta() {
                 >
                   Cancelar
                 </Button>
-                <Button
-                  variant="contained"
-                  startIcon={<SaveIcon />}
-                  onClick={handleCambiarPassword}
-                  disabled={loading}
-                >
+                <Button variant="contained" startIcon={<SaveIcon />} onClick={handleCambiarPassword} disabled={loading}>
                   {loading ? "Cambiando..." : "Cambiar Contraseña"}
                 </Button>
               </Box>
             )}
+          </CardContent>
+        </Card>
+
+        {/* PERSONALIZACIÓN DE INTERFAZ */}
+        <Card>
+          <CardContent>
+            <Box display="flex" alignItems="center" mb={2}>
+              <PaletteIcon sx={{ mr: 1, color: "primary.main" }} />
+              <Typography variant="h6" fontWeight="bold">
+                Personalización de Interfaz
+              </Typography>
+            </Box>
+
+            <Divider sx={{ mb: 3 }} />
+
+            <Grid container spacing={3}>
+              {/* Tema */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Tema"
+                  value={preferences.theme}
+                  onChange={(e) => updatePreferences({ theme: e.target.value })}
+                  InputProps={{
+                    startAdornment: <PaletteIcon sx={{ mr: 1, color: "action.active" }} />,
+                  }}
+                >
+                  <MenuItem value="light">☀️ Claro</MenuItem>
+                  <MenuItem value="dark">🌙 Oscuro</MenuItem>
+                </TextField>
+              </Grid>
+
+              {/* Tamaño de fuente */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Tamaño de Letra"
+                  value={preferences.fontSize}
+                  onChange={(e) => updatePreferences({ fontSize: e.target.value })}
+                  InputProps={{
+                    startAdornment: <TextFieldsIcon sx={{ mr: 1, color: "action.active" }} />,
+                  }}
+                >
+                  <MenuItem value="small">Pequeño</MenuItem>
+                  <MenuItem value="medium">Mediano</MenuItem>
+                  <MenuItem value="large">Grande</MenuItem>
+                </TextField>
+              </Grid>
+
+              {/* Idioma */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Idioma"
+                  value={preferences.language}
+                  onChange={(e) => updatePreferences({ language: e.target.value })}
+                  InputProps={{
+                    startAdornment: <LanguageIcon sx={{ mr: 1, color: "action.active" }} />,
+                  }}
+                >
+                  <MenuItem value="es">🇪🇸 Español</MenuItem>
+                  <MenuItem value="en">🇺🇸 English</MenuItem>
+                </TextField>
+              </Grid>
+
+              {/* Fuente */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Tipo de Fuente"
+                  value={preferences.fontFamily}
+                  onChange={(e) => updatePreferences({ fontFamily: e.target.value })}
+                >
+                  <MenuItem value="Roboto" style={{ fontFamily: "Roboto" }}>
+                    Roboto (Predeterminada)
+                  </MenuItem>
+                  <MenuItem value="Arial" style={{ fontFamily: "Arial" }}>
+                    Arial
+                  </MenuItem>
+                  <MenuItem value="'Times New Roman'" style={{ fontFamily: "'Times New Roman'" }}>
+                    Times New Roman
+                  </MenuItem>
+                  <MenuItem value="'Courier New'" style={{ fontFamily: "'Courier New'" }}>
+                    Courier New
+                  </MenuItem>
+                  <MenuItem value="Georgia" style={{ fontFamily: "Georgia" }}>
+                    Georgia
+                  </MenuItem>
+                </TextField>
+              </Grid>
+            </Grid>
+
+            <Box mt={2}>
+              <Alert severity="info">
+                Los cambios se aplican inmediatamente y se guardan automáticamente.
+              </Alert>
+            </Box>
           </CardContent>
         </Card>
       </Paper>
