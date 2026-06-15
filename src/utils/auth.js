@@ -1,71 +1,54 @@
-// ============================================
-// FUNCIONES DE AUTENTICACIÓN
-// ============================================
+export const ROLES = {
+  ADMIN: "Administrador",
+  MEDICO: "Médico Calificador",
+  COORDINADOR: "Coordinador",
+  PACIENTE: "Paciente",
+};
 
-/**
- * Guardar sesión del usuario
- */
 export const login = (token, user) => {
   localStorage.setItem("token", token);
   localStorage.setItem("user", JSON.stringify(user));
 };
 
-/**
- * Cerrar sesión del usuario
- */
 export const logout = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
 };
 
-/**
- * Verificar si el usuario está autenticado
- */
 export const isAuthenticated = () => {
-  const token = localStorage.getItem("token");
-  return !!token; // Retorna true si existe token, false si no
+  return !!localStorage.getItem("token");
 };
 
-/**
- * Obtener el token actual
- */
 export const getToken = () => {
   return localStorage.getItem("token");
 };
 
-/**
- * Obtener datos del usuario actual
- */
 export const getCurrentUser = () => {
   const userStr = localStorage.getItem("user");
   if (!userStr) return null;
-  
   try {
     return JSON.parse(userStr);
-  } catch (error) {
-    console.error("Error al parsear usuario:", error);
+  } catch {
     return null;
   }
 };
 
-/**
- * Verificar si el usuario tiene un rol específico
- */
 export const hasRole = (role) => {
   const user = getCurrentUser();
-  return user && user.role === role;
+  return user?.role === role;
 };
 
-/**
- * Verificar si el usuario es administrador
- */
-export const isAdmin = () => {
-  return hasRole("Administrador");
+export const hasAnyRole = (roles) => {
+  const user = getCurrentUser();
+  return roles.includes(user?.role);
 };
 
-/**
- * Verificar si el usuario es médico
- */
-export const isMedico = () => {
-  return hasRole("Médico evaluador");
-};
+export const isAdmin = () => hasRole(ROLES.ADMIN);
+export const isMedico = () => hasRole(ROLES.MEDICO);
+export const isCoordinador = () => hasRole(ROLES.COORDINADOR);
+export const isPaciente = () => hasRole(ROLES.PACIENTE);
+
+export const canCreate = () => hasAnyRole([ROLES.ADMIN, ROLES.MEDICO]);
+export const canEdit = () => hasAnyRole([ROLES.ADMIN, ROLES.MEDICO]);
+export const canDelete = () => hasAnyRole([ROLES.ADMIN, ROLES.MEDICO]);
+export const canManageWorkflow = () => hasAnyRole([ROLES.ADMIN, ROLES.COORDINADOR, ROLES.MEDICO]);

@@ -15,10 +15,11 @@ export const usePreferences = () => {
 
 export const PreferencesProvider = ({ children }) => {
   const [preferences, setPreferences] = useState({
-    theme: "light", // light | dark
+    theme: "light",    // light | dark
     fontSize: "medium", // small | medium | large
-    language: "es", // es | en
-    fontFamily: "Roboto", // Roboto | Arial | Times New Roman
+    language: "es",    // es (en: próximamente)
+    fontFamily: "Roboto", // fuente UI
+    pdfFont: "times",  // fuente del PDF: helvetica | times
   });
 
   // Cargar preferencias al iniciar

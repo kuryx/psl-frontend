@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Container,
@@ -17,17 +17,65 @@ import {
   Divider,
   CircularProgress,
   IconButton,
+  Switch,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  Tooltip,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SaveIcon from "@mui/icons-material/Save";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
+import DownloadIcon from "@mui/icons-material/Download";
+import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import {
   obtenerEvaluacion,
   actualizarEvaluacion,
   buscarEnfermedadesCIE11,
+  listarDocumentos,
+  subirDocumento,
+  eliminarDocumento,
+  urlDocumento,
 } from "../services/evaluationService";
+import api from "../services/api";
+import CalculadorPCL from "../components/CalculadorPCL";
 import { buscarCIUO } from "../services/Ciuoservice";
+import { getCurrentUser } from "../utils/auth";
+
+const limpiarHTML = (texto) => {
+  if (!texto) return "";
+  const doc = new DOMParser().parseFromString(texto, "text/html");
+  return doc.body.textContent || "";
+};
+
+const calcularEdad = (fechaNac, fechaRef) => {
+  if (!fechaNac || !fechaRef) return "";
+  const nac = new Date(fechaNac);
+  const ref = new Date(fechaRef);
+  let edad = ref.getFullYear() - nac.getFullYear();
+  const m = ref.getMonth() - nac.getMonth();
+  if (m < 0 || (m === 0 && ref.getDate() < nac.getDate())) edad--;
+  return edad >= 0 ? edad : 0;
+};
+
+const calcularAntiguedad = (fechaIng, fechaRef) => {
+  if (!fechaIng || !fechaRef) return "";
+  const ing = new Date(fechaIng);
+  const ref = new Date(fechaRef);
+  if (ref < ing) return "";
+  let years = ref.getFullYear() - ing.getFullYear();
+  let months = ref.getMonth() - ing.getMonth();
+  if (ref.getDate() < ing.getDate()) months--;
+  if (months < 0) { years--; months += 12; }
+  const parts = [];
+  if (years > 0) parts.push(`${years} año${years !== 1 ? "s" : ""}`);
+  if (months > 0) parts.push(`${months} mes${months !== 1 ? "es" : ""}`);
+  return parts.length > 0 ? parts.join(" y ") : "Menos de un mes";
+};
 
 export default function EditEvaluation() {
   const { id } = useParams();
@@ -37,8 +85,17 @@ export default function EditEvaluation() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // Documentos adjuntos
+  const [documentos, setDocumentos] = useState([]);
+  const [subiendoDoc, setSubiendoDoc] = useState(false);
+  const fileRef = useRef();
+
+  // Upload IA (extracción historia clínica)
+  const [uploadingPDF, setUploadingPDF] = useState(false);
+  const [pdfSuccess, setPdfSuccess] = useState("");
+
   // Búsqueda de enfermedades CIE-11
-  const [, setBusquedaPrincipal] = useState("");
+  const [busquedaPrincipal, setBusquedaPrincipal] = useState("");
   const [resultadosPrincipal, setResultadosPrincipal] = useState([]);
   const [loadingPrincipal, setLoadingPrincipal] = useState(false);
 
@@ -76,6 +133,13 @@ export default function EditEvaluation() {
       ciudad: "",
       telefono: "",
       correoElectronico: "",
+    },
+    medicoCalificador: {
+      nombre: "",
+      cedula: "",
+      correoElectronico: "",
+      especialidad: "",
+      registroProfesional: "",
     },
     paciente: {
       nombreCompleto: "",
@@ -119,17 +183,25 @@ export default function EditEvaluation() {
     resumenCaso: "",
     calificacionPrimeraOportunidad: "",
     procesoRehabilitacion: "No aplica",
+    descripcionRehabilitacion: "",
+    conceptosMedicos: [],
+    valoracionesCalificador: [],
+    analisisConclusiones: "",
     diagnosticoPrincipal: {
       codigo: "",
       nombre: "",
       fechaDiagnostico: "",
       diagnosticoEspecifico: "",
+      origen: "",
     },
     diagnosticosSecundarios: [],
     porcentajePCL: "",
     deficiencia: "",
     discapacidad: "",
     minusvalia: "",
+    detalleDeficiencias: [],
+    valoracionRolLaboral: { restriccionesRolLaboral: 0, restriccionesAutosuficiencia: 0, restriccionesEdad: 0 },
+    avdsDetalle: {},
     fechaEstructuracion: "",
     fechaDeclaratoria: "",
     origen: "Enfermedad común",
@@ -193,6 +265,16 @@ export default function EditEvaluation() {
           telefono: data.entidadCalificadora?.telefono || "",
           correoElectronico: data.entidadCalificadora?.correoElectronico || "",
         },
+        medicoCalificador: (() => {
+          const u = getCurrentUser();
+          return {
+            nombre: data.medicoCalificador?.nombre || u?.name || "",
+            cedula: data.medicoCalificador?.cedula || u?.cedula || "",
+            correoElectronico: data.medicoCalificador?.correoElectronico || u?.email || "",
+            especialidad: data.medicoCalificador?.especialidad || "",
+            registroProfesional: data.medicoCalificador?.registroProfesional || "",
+          };
+        })(),
         paciente: {
           nombreCompleto: data.paciente?.nombreCompleto || "",
           tipoIdentificacion: data.paciente?.tipoIdentificacion || "CC",
@@ -236,17 +318,31 @@ export default function EditEvaluation() {
         resumenCaso: data.resumenCaso || "",
         calificacionPrimeraOportunidad: data.calificacionPrimeraOportunidad || "",
         procesoRehabilitacion: data.procesoRehabilitacion || "No aplica",
+        descripcionRehabilitacion: data.descripcionRehabilitacion || "",
+        conceptosMedicos: (data.conceptosMedicos || []).map((c) => ({
+          ...c,
+          fecha: c.fecha ? new Date(c.fecha).toISOString().split("T")[0] : "",
+        })),
+        valoracionesCalificador: (data.valoracionesCalificador || []).map((v) => ({
+          ...v,
+          fecha: v.fecha ? new Date(v.fecha).toISOString().split("T")[0] : "",
+        })),
+        analisisConclusiones: data.analisisConclusiones || "",
         diagnosticoPrincipal: {
           codigo: data.diagnosticoPrincipal?.codigo || "",
           nombre: data.diagnosticoPrincipal?.nombre || "",
           fechaDiagnostico: formatearFecha(data.diagnosticoPrincipal?.fechaDiagnostico),
           diagnosticoEspecifico: data.diagnosticoPrincipal?.diagnosticoEspecifico || "",
+          origen: data.diagnosticoPrincipal?.origen || "",
         },
         diagnosticosSecundarios: data.diagnosticosSecundarios || [],
         porcentajePCL: data.porcentajePCL || "",
         deficiencia: data.deficiencia || "",
         discapacidad: data.discapacidad || "",
         minusvalia: data.minusvalia || "",
+        detalleDeficiencias: data.detalleDeficiencias || [],
+        valoracionRolLaboral: data.valoracionRolLaboral || { restriccionesRolLaboral: 0, restriccionesAutosuficiencia: 0, restriccionesEdad: 0 },
+        avdsDetalle: data.avdsDetalle || {},
         fechaEstructuracion: formatearFecha(data.fechaEstructuracion),
         fechaDeclaratoria: formatearFecha(data.fechaDeclaratoria),
         origen: data.origen || "Enfermedad común",
@@ -277,34 +373,101 @@ export default function EditEvaluation() {
 
   const handleChange = (section, field, value) => {
     if (section) {
-      setFormData({
-        ...formData,
+      setFormData(prev => ({
+        ...prev,
         [section]: {
-          ...formData[section],
+          ...prev[section],
           [field]: value,
         },
-      });
+      }));
     } else {
-      setFormData({
-        ...formData,
-        [field]: value,
-      });
+      setFormData(prev => ({ ...prev, [field]: value }));
     }
   };
 
+  // ── Documentos adjuntos ─────────────────────────────────────────
+  const cargarDocs = useCallback(async () => {
+    try { setDocumentos(await listarDocumentos(id)); } catch {}
+  }, [id]);
+
+  useEffect(() => { cargarDocs(); }, [cargarDocs]);
+
+  const handleSubirDoc = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSubiendoDoc(true);
+    try { await subirDocumento(id, file); await cargarDocs(); }
+    catch { setError("Error al subir el documento"); }
+    finally { setSubiendoDoc(false); if (fileRef.current) fileRef.current.value = ""; }
+  };
+
+  const handleDescargarDoc = async (doc) => {
+    try {
+      const token = localStorage.getItem("token");
+      const resp = await fetch(urlDocumento(id, doc._id), { headers: { Authorization: `Bearer ${token}` } });
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = doc.nombre; a.click();
+      URL.revokeObjectURL(url);
+    } catch { setError("Error al descargar el documento"); }
+  };
+
+  const handleEliminarDoc = async (docId) => {
+    if (!window.confirm("¿Eliminar este documento?")) return;
+    try { await eliminarDocumento(id, docId); await cargarDocs(); }
+    catch { setError("Error al eliminar el documento"); }
+  };
+
+  // ── Extracción IA desde PDF ─────────────────────────────────────
+  const handlePDFUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") { setError("Solo se permiten archivos PDF"); return; }
+    if (file.size > 10 * 1024 * 1024) { setError("El archivo es demasiado grande. Máximo 10MB"); return; }
+    setUploadingPDF(true); setError(""); setPdfSuccess("");
+    try {
+      const pdfFormData = new FormData();
+      pdfFormData.append("pdf", file);
+      const response = await api.post("/evaluations/extract-historia", pdfFormData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      const { data } = response.data;
+      setFormData((prev) => ({
+        ...prev,
+        historialClinico: data.historialClinico || prev.historialClinico,
+        resumenCaso: data.resumenCaso || prev.resumenCaso,
+        calificacionPrimeraOportunidad: data.calificacionPrimeraOportunidad || prev.calificacionPrimeraOportunidad,
+        procesoRehabilitacion: data.procesoRehabilitacion || prev.procesoRehabilitacion,
+        observaciones: data.observaciones || prev.observaciones,
+      }));
+      setPdfSuccess(`✅ Historia clínica extraída. ${data.conceptosMedicos?.length || 0} conceptos médicos encontrados.`);
+      event.target.value = "";
+    } catch (err) {
+      setError(err.response?.data?.message || "Error al procesar el PDF.");
+    } finally { setUploadingPDF(false); }
+  };
+
   const handleTelefonoChange = (index, value) => {
-    const newTelefonos = [...formData.paciente.telefonos];
-    newTelefonos[index] = value;
-    handleChange("paciente", "telefonos", newTelefonos);
+    setFormData(prev => {
+      const newTelefonos = [...prev.paciente.telefonos];
+      newTelefonos[index] = value;
+      return { ...prev, paciente: { ...prev.paciente, telefonos: newTelefonos } };
+    });
   };
 
   const agregarTelefono = () => {
-    handleChange("paciente", "telefonos", [...formData.paciente.telefonos, ""]);
+    setFormData(prev => ({
+      ...prev,
+      paciente: { ...prev.paciente, telefonos: [...prev.paciente.telefonos, ""] },
+    }));
   };
 
   const eliminarTelefono = (index) => {
-    const newTelefonos = formData.paciente.telefonos.filter((_, i) => i !== index);
-    handleChange("paciente", "telefonos", newTelefonos);
+    setFormData(prev => ({
+      ...prev,
+      paciente: { ...prev.paciente, telefonos: prev.paciente.telefonos.filter((_, i) => i !== index) },
+    }));
   };
 
   const buscarDiagnosticoPrincipal = async (termino) => {
@@ -345,6 +508,7 @@ export default function EditEvaluation() {
             nombre: diagnostico.nombre,
             fechaDiagnostico: "",
             diagnosticoEspecifico: "",
+            origen: "",
           },
         ],
       });
@@ -377,24 +541,31 @@ export default function EditEvaluation() {
     setError("");
     setSaving(true);
 
+    const fail = (msg, tab) => {
+      setError(msg);
+      if (tab !== undefined) setTabActual(tab);
+      setSaving(false);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return true;
+    };
+
     try {
-      if (!formData.paciente.nombreCompleto || !formData.paciente.cedula) {
-        setError("El nombre y cédula del paciente son obligatorios");
-        setSaving(false);
-        return;
-      }
-
-      if (!formData.diagnosticoPrincipal.codigo) {
-        setError("Debe seleccionar un diagnóstico principal");
-        setSaving(false);
-        return;
-      }
-
-      if (!formData.porcentajePCL) {
-        setError("Debe ingresar el porcentaje de PCL");
-        setSaving(false);
-        return;
-      }
+      if (!formData.paciente.nombreCompleto?.trim())
+        return fail("El nombre completo del paciente es obligatorio", 2);
+      if (!formData.paciente.cedula?.trim())
+        return fail("La cédula del paciente es obligatoria", 2);
+      if (!formData.paciente.edad && formData.paciente.edad !== 0)
+        return fail("La edad del paciente es obligatoria", 2);
+      if (!formData.historialClinico?.trim())
+        return fail("El historial clínico es obligatorio", 4);
+      if (!formData.diagnosticoPrincipal?.codigo)
+        return fail("Debe seleccionar un diagnóstico principal CIE-11", 5);
+      if (formData.porcentajePCL === "" || formData.porcentajePCL === null || formData.porcentajePCL === undefined)
+        return fail("Debe ingresar el porcentaje de PCL", 6);
+      if (Number(formData.porcentajePCL) < 0 || Number(formData.porcentajePCL) > 100)
+        return fail("El porcentaje de PCL debe estar entre 0 y 100", 6);
+      if (Number(formData.porcentajePCL) > 0 && !formData.fechaEstructuracion)
+        return fail("La fecha de estructuración es obligatoria cuando la PCL es mayor a 0", 6);
 
       const datosLimpios = {
         ...formData,
@@ -459,6 +630,7 @@ export default function EditEvaluation() {
           <Tab label="6. DIAGNÓSTICOS" />
           <Tab label="7. PORCENTAJES" />
           <Tab label="8. OBSERVACIONES" />
+          <Tab label="9. DOCUMENTOS" icon={<FolderOpenIcon fontSize="small" />} iconPosition="start" />
         </Tabs>
 
         {/* LAS 8 PESTAÑAS SON IDÉNTICAS A NewEvaluation.jsx */}
@@ -479,9 +651,17 @@ export default function EditEvaluation() {
                   label="Fecha de Dictamen"
                   type="date"
                   value={formData.informacionDictamen.fechaDictamen}
-                  onChange={(e) =>
-                    handleChange("informacionDictamen", "fechaDictamen", e.target.value)
-                  }
+                  onChange={(e) => {
+                    const fecha = e.target.value;
+                    const edadCalc = calcularEdad(formData.paciente.fechaNacimiento, fecha);
+                    const antigCalc = calcularAntiguedad(formData.antecedentesLaborales.fechaIngreso, fecha);
+                    setFormData((prev) => ({
+                      ...prev,
+                      informacionDictamen: { ...prev.informacionDictamen, fechaDictamen: fecha },
+                      paciente: { ...prev.paciente, edad: edadCalc !== "" ? String(edadCalc) : prev.paciente.edad },
+                      antecedentesLaborales: { ...prev.antecedentesLaborales, antiguedad: antigCalc !== "" ? antigCalc : prev.antecedentesLaborales.antiguedad },
+                    }));
+                  }}
                   InputLabelProps={{ shrink: true }}
                 />
               </Grid>
@@ -719,6 +899,72 @@ export default function EditEvaluation() {
                   onChange={(e) =>
                     handleChange("entidadCalificadora", "correoElectronico", e.target.value)
                   }
+                />
+              </Grid>
+            </Grid>
+
+            {/* ── MÉDICO CALIFICADOR ─────────────────────────────── */}
+            <Typography variant="h6" fontWeight="bold" sx={{ mt: 4, mb: 1 }}>
+              Datos del Médico Calificador
+            </Typography>
+            <Divider sx={{ mb: 3 }} />
+
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Nombre completo"
+                  value={formData.medicoCalificador.nombre}
+                  onChange={(e) =>
+                    handleChange("medicoCalificador", "nombre", e.target.value)
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Cédula"
+                  value={formData.medicoCalificador.cedula}
+                  onChange={(e) =>
+                    handleChange("medicoCalificador", "cedula", e.target.value)
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Correo electrónico"
+                  type="email"
+                  value={formData.medicoCalificador.correoElectronico}
+                  onChange={(e) =>
+                    handleChange("medicoCalificador", "correoElectronico", e.target.value)
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Especialidad / Cargo"
+                  value={formData.medicoCalificador.especialidad}
+                  onChange={(e) =>
+                    handleChange("medicoCalificador", "especialidad", e.target.value)
+                  }
+                  placeholder="Ej: Médico Laboral, Médico Ocupacional..."
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Registro / Tarjeta Profesional"
+                  value={formData.medicoCalificador.registroProfesional}
+                  onChange={(e) =>
+                    handleChange("medicoCalificador", "registroProfesional", e.target.value)
+                  }
+                  placeholder="No. de tarjeta profesional"
                 />
               </Grid>
             </Grid>
@@ -1198,9 +1444,25 @@ export default function EditEvaluation() {
         {/* TAB 5: HISTORIAL CLÍNICO */}
         {tabActual === 4 && (
           <Box>
-            <Typography variant="h6" gutterBottom fontWeight="bold">
-              Información Clínica y Conceptos
-            </Typography>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+              <Typography variant="h6" fontWeight="bold">
+                Información Clínica y Conceptos
+              </Typography>
+              <Box display="flex" alignItems="center" gap={1}>
+                {pdfSuccess && <Typography variant="caption" color="success.main">{pdfSuccess}</Typography>}
+                <Button
+                  variant="outlined"
+                  size="small"
+                  component="label"
+                  startIcon={uploadingPDF ? <CircularProgress size={14} /> : <AutoAwesomeIcon />}
+                  disabled={uploadingPDF}
+                  color="secondary"
+                >
+                  {uploadingPDF ? "Procesando..." : "Extraer con IA"}
+                  <input type="file" hidden accept="application/pdf" onChange={handlePDFUpload} />
+                </Button>
+              </Box>
+            </Box>
             <Divider sx={{ mb: 3 }} />
 
             <Grid container spacing={3}>
@@ -1226,7 +1488,7 @@ export default function EditEvaluation() {
                   onChange={(e) =>
                     handleChange(null, "calificacionPrimeraOportunidad", e.target.value)
                   }
-                  placeholder="Detalles de la calificación inicial..."
+                  placeholder="Ej: Colpensiones calificó PCL de 41.91%..."
                 />
               </Grid>
 
@@ -1235,7 +1497,7 @@ export default function EditEvaluation() {
                   fullWidth
                   label="Historial Clínico Completo"
                   multiline
-                  rows={10}
+                  rows={8}
                   value={formData.historialClinico}
                   onChange={(e) => handleChange(null, "historialClinico", e.target.value)}
                   required
@@ -1243,18 +1505,222 @@ export default function EditEvaluation() {
                 />
               </Grid>
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Proceso de Rehabilitación"
-                  value={formData.procesoRehabilitacion}
-                  onChange={(e) => handleChange(null, "procesoRehabilitacion", e.target.value)}
+              {/* ── CONCEPTOS MÉDICOS ─────────────────────────────── */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" fontWeight="bold" mb={1}>
+                  Conceptos Médicos de Especialistas
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+
+                {formData.conceptosMedicos.length === 0 && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Sin conceptos médicos registrados.
+                  </Typography>
+                )}
+
+                {formData.conceptosMedicos.map((concepto, idx) => (
+                  <Box
+                    key={idx}
+                    sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, p: 2, mb: 2 }}
+                  >
+                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                      <Typography variant="body2" fontWeight="bold" color="primary">
+                        Concepto #{idx + 1}
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => {
+                          const nuevo = formData.conceptosMedicos.filter((_, i) => i !== idx);
+                          handleChange(null, "conceptosMedicos", nuevo);
+                        }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          fullWidth label="Fecha" type="date" size="small"
+                          value={concepto.fecha || ""}
+                          onChange={(e) => {
+                            const nuevo = [...formData.conceptosMedicos];
+                            nuevo[idx] = { ...nuevo[idx], fecha: e.target.value };
+                            handleChange(null, "conceptosMedicos", nuevo);
+                          }}
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={8}>
+                        <TextField
+                          fullWidth label="Especialidad" size="small"
+                          value={concepto.especialidad || ""}
+                          onChange={(e) => {
+                            const nuevo = [...formData.conceptosMedicos];
+                            nuevo[idx] = { ...nuevo[idx], especialidad: e.target.value };
+                            handleChange(null, "conceptosMedicos", nuevo);
+                          }}
+                          placeholder="Ej: Cardiología, Neurología..."
+                        />
+                      </Grid>
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth label="Resumen del Concepto" multiline rows={3} size="small"
+                          value={concepto.resumen || ""}
+                          onChange={(e) => {
+                            const nuevo = [...formData.conceptosMedicos];
+                            nuevo[idx] = { ...nuevo[idx], resumen: e.target.value };
+                            handleChange(null, "conceptosMedicos", nuevo);
+                          }}
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
+                ))}
+
+                <Button
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={() =>
+                    handleChange(null, "conceptosMedicos", [
+                      ...formData.conceptosMedicos,
+                      { fecha: "", especialidad: "", resumen: "" },
+                    ])
+                  }
+                  sx={{ mt: 1 }}
                 >
-                  <MenuItem value="Finalizado">Finalizado</MenuItem>
-                  <MenuItem value="En curso">En curso</MenuItem>
-                  <MenuItem value="No aplica">No aplica</MenuItem>
-                </TextField>
+                  Agregar concepto
+                </Button>
+              </Grid>
+
+              {/* ── CONCEPTO DE REHABILITACIÓN ───────────────────── */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                  Concepto de Rehabilitación
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={3}>
+                    <TextField
+                      select fullWidth label="Estado"
+                      value={formData.procesoRehabilitacion}
+                      onChange={(e) => handleChange(null, "procesoRehabilitacion", e.target.value)}
+                    >
+                      <MenuItem value="Finalizado">Finalizado</MenuItem>
+                      <MenuItem value="En curso">En curso</MenuItem>
+                      <MenuItem value="No aplica">No aplica</MenuItem>
+                    </TextField>
+                  </Grid>
+                  <Grid item xs={12} md={9}>
+                    <TextField
+                      fullWidth label="Descripción del proceso de rehabilitación" multiline rows={3}
+                      value={formData.descripcionRehabilitacion}
+                      onChange={(e) => handleChange(null, "descripcionRehabilitacion", e.target.value)}
+                      placeholder="Descripción del proceso de rehabilitación realizado..."
+                    />
+                  </Grid>
+                </Grid>
+              </Grid>
+
+              {/* ── VALORACIONES DEL CALIFICADOR ─────────────────── */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" fontWeight="bold" mb={1}>
+                  Valoraciones del Calificador / Equipo Interdisciplinario
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+
+                {formData.valoracionesCalificador.length === 0 && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Sin valoraciones registradas.
+                  </Typography>
+                )}
+
+                {formData.valoracionesCalificador.map((val, idx) => (
+                  <Box
+                    key={idx}
+                    sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, p: 2, mb: 2 }}
+                  >
+                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                      <Typography variant="body2" fontWeight="bold" color="primary">
+                        Valoración #{idx + 1}
+                      </Typography>
+                      <IconButton
+                        size="small" color="error"
+                        onClick={() => {
+                          const nuevo = formData.valoracionesCalificador.filter((_, i) => i !== idx);
+                          handleChange(null, "valoracionesCalificador", nuevo);
+                        }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          fullWidth label="Fecha" type="date" size="small"
+                          value={val.fecha || ""}
+                          onChange={(e) => {
+                            const nuevo = [...formData.valoracionesCalificador];
+                            nuevo[idx] = { ...nuevo[idx], fecha: e.target.value };
+                            handleChange(null, "valoracionesCalificador", nuevo);
+                          }}
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={8}>
+                        <TextField
+                          fullWidth label="Especialidad / Tipo de Valoración" size="small"
+                          value={val.especialidad || ""}
+                          onChange={(e) => {
+                            const nuevo = [...formData.valoracionesCalificador];
+                            nuevo[idx] = { ...nuevo[idx], especialidad: e.target.value };
+                            handleChange(null, "valoracionesCalificador", nuevo);
+                          }}
+                          placeholder="Ej: Valoración Fisioterapeuta, Médico Ponente..."
+                        />
+                      </Grid>
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth label="Descripción de la Valoración" multiline rows={5} size="small"
+                          value={val.valoracion || ""}
+                          onChange={(e) => {
+                            const nuevo = [...formData.valoracionesCalificador];
+                            nuevo[idx] = { ...nuevo[idx], valoracion: e.target.value };
+                            handleChange(null, "valoracionesCalificador", nuevo);
+                          }}
+                        />
+                      </Grid>
+                    </Grid>
+                  </Box>
+                ))}
+
+                <Button
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={() =>
+                    handleChange(null, "valoracionesCalificador", [
+                      ...formData.valoracionesCalificador,
+                      { fecha: "", especialidad: "", valoracion: "" },
+                    ])
+                  }
+                  sx={{ mt: 1 }}
+                >
+                  Agregar valoración
+                </Button>
+              </Grid>
+
+              {/* ── ANÁLISIS Y CONCLUSIONES ───────────────────────── */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                  Análisis y Conclusiones
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                <TextField
+                  fullWidth label="Análisis y Conclusiones" multiline rows={6}
+                  value={formData.analisisConclusiones}
+                  onChange={(e) => handleChange(null, "analisisConclusiones", e.target.value)}
+                  placeholder="Análisis del caso y conclusiones del calificador..."
+                />
               </Grid>
             </Grid>
           </Box>
@@ -1277,16 +1743,16 @@ export default function EditEvaluation() {
                   freeSolo
                   options={resultadosPrincipal}
                   getOptionLabel={(option) =>
-                    typeof option === "string" ? option : `${option.codigo} - ${option.nombre}`
+                    typeof option === "string"
+                      ? option
+                      : `${option.codigo} - ${limpiarHTML(option.nombre)}`
                   }
                   loading={loadingPrincipal}
-                  value={
-                    formData.diagnosticoPrincipal.codigo ? formData.diagnosticoPrincipal : null
-                  }
-                  onInputChange={(e, value) => {
-                    setBusquedaPrincipal(value);
-                    if (value.length >= 3) {
-                      buscarDiagnosticoPrincipal(value);
+                  inputValue={busquedaPrincipal}
+                  onInputChange={(e, value, reason) => {
+                    if (reason !== "reset") {
+                      setBusquedaPrincipal(value);
+                      if (value.length >= 3) buscarDiagnosticoPrincipal(value);
                     }
                   }}
                   onChange={(e, value) => {
@@ -1298,21 +1764,22 @@ export default function EditEvaluation() {
                         diagnosticoEspecifico:
                           formData.diagnosticoPrincipal.diagnosticoEspecifico || "",
                       });
+                      setBusquedaPrincipal("");
+                      setResultadosPrincipal([]);
                     }
                   }}
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Buscar diagnóstico principal"
-                      placeholder="Escriba al menos 3 caracteres..."
-                      required
+                      label="Buscar diagnóstico CIE-11"
+                      helperText={
+                        formData.diagnosticoPrincipal.codigo
+                          ? "Diagnóstico seleccionado abajo — busca para cambiar"
+                          : "Busque por código o nombre"
+                      }
                     />
                   )}
-                  componentsProps={{
-                    popper: {
-                      style: { minWidth: 700 },
-                    },
-                  }}
+                  componentsProps={{ popper: { style: { minWidth: 700 } } }}
                   renderOption={(props, option) => {
                     const { key, ...otherProps } = props;
                     return (
@@ -1322,7 +1789,7 @@ export default function EditEvaluation() {
                             {option.codigo}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            {option.nombre}
+                            {limpiarHTML(option.nombre)}
                           </Typography>
                         </Box>
                       </li>
@@ -1333,6 +1800,39 @@ export default function EditEvaluation() {
 
               {formData.diagnosticoPrincipal.codigo && (
                 <>
+                  <Grid item xs={12}>
+                    <Alert
+                      severity="success"
+                      icon={false}
+                      action={
+                        <Button
+                          color="inherit"
+                          size="small"
+                          variant="outlined"
+                          onClick={() => {
+                            handleChange(null, "diagnosticoPrincipal", {
+                              codigo: "",
+                              nombre: "",
+                              fechaDiagnostico: "",
+                              diagnosticoEspecifico: "",
+                            });
+                            setResultadosPrincipal([]);
+                          }}
+                        >
+                          Cambiar
+                        </Button>
+                      }
+                      sx={{ alignItems: "flex-start" }}
+                    >
+                      <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                        {formData.diagnosticoPrincipal.codigo}
+                      </Typography>
+                      <Typography variant="body2">
+                        {limpiarHTML(formData.diagnosticoPrincipal.nombre)}
+                      </Typography>
+                    </Alert>
+                  </Grid>
+
                   <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
@@ -1349,7 +1849,7 @@ export default function EditEvaluation() {
                     />
                   </Grid>
 
-                  <Grid item xs={12} md={6}>
+                  <Grid item xs={12} md={4}>
                     <TextField
                       fullWidth
                       label="Diagnóstico Específico"
@@ -1362,6 +1862,27 @@ export default function EditEvaluation() {
                       }
                       placeholder="Detalles adicionales del diagnóstico"
                     />
+                  </Grid>
+
+                  <Grid item xs={12} md={2}>
+                    <TextField
+                      fullWidth
+                      select
+                      label="Origen"
+                      value={formData.diagnosticoPrincipal.origen}
+                      onChange={(e) =>
+                        handleChange(null, "diagnosticoPrincipal", {
+                          ...formData.diagnosticoPrincipal,
+                          origen: e.target.value,
+                        })
+                      }
+                    >
+                      <MenuItem value="">Sin especificar</MenuItem>
+                      <MenuItem value="Enfermedad común">Enfermedad común</MenuItem>
+                      <MenuItem value="Enfermedad laboral">Enfermedad laboral</MenuItem>
+                      <MenuItem value="Accidente de trabajo">Accidente de trabajo</MenuItem>
+                      <MenuItem value="Accidente común">Accidente común</MenuItem>
+                    </TextField>
                   </Grid>
                 </>
               )}
@@ -1420,146 +1941,70 @@ export default function EditEvaluation() {
             />
 
             <Box sx={{ mt: 2 }}>
-              {formData.diagnosticosSecundarios.map((diagnostico, index) => (
-                <Chip
-                  key={diagnostico.codigo}
-                  label={`${diagnostico.codigo} - ${diagnostico.nombre.substring(0, 50)}...`}
-                  onDelete={() => eliminarDiagnosticoSecundario(diagnostico.codigo)}
-                  sx={{ m: 0.5 }}
-                  color="primary"
-                  variant="outlined"
-                />
-              ))}
+              {formData.diagnosticosSecundarios.map((diagnostico, idx) => {
+                const nombre = limpiarHTML(diagnostico.nombre);
+                const updateSecundario = (campo, valor) => {
+                  const updated = formData.diagnosticosSecundarios.map((d, i) =>
+                    i === idx ? { ...d, [campo]: valor } : d
+                  );
+                  handleChange(null, "diagnosticosSecundarios", updated);
+                };
+                return (
+                  <Box
+                    key={diagnostico.codigo}
+                    sx={{ mb: 1, p: 1.5, border: "1px solid", borderColor: "divider", borderRadius: 1 }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                      <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }}>
+                        <strong>{diagnostico.codigo}</strong> — {nombre.length > 80 ? nombre.substring(0, 80) + "..." : nombre}
+                      </Typography>
+                      <IconButton size="small" color="error" onClick={() => eliminarDiagnosticoSecundario(diagnostico.codigo)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      <TextField
+                        size="small"
+                        label="Diagnóstico específico"
+                        value={diagnostico.diagnosticoEspecifico || ""}
+                        onChange={(e) => updateSecundario("diagnosticoEspecifico", e.target.value)}
+                        placeholder="Detalles adicionales (opcional)"
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField
+                        size="small"
+                        label="Fecha de Diagnóstico"
+                        type="date"
+                        value={diagnostico.fechaDiagnostico ? diagnostico.fechaDiagnostico.substring(0, 10) : ""}
+                        onChange={(e) => updateSecundario("fechaDiagnostico", e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                        sx={{ minWidth: 160 }}
+                      />
+                      <TextField
+                        select
+                        size="small"
+                        label="Origen"
+                        value={diagnostico.origen || ""}
+                        onChange={(e) => updateSecundario("origen", e.target.value)}
+                        sx={{ minWidth: 180 }}
+                      >
+                        <MenuItem value="">Sin especificar</MenuItem>
+                        <MenuItem value="Enfermedad común">Enfermedad común</MenuItem>
+                        <MenuItem value="Enfermedad laboral">Enfermedad laboral</MenuItem>
+                        <MenuItem value="Accidente de trabajo">Accidente de trabajo</MenuItem>
+                        <MenuItem value="Accidente común">Accidente común</MenuItem>
+                      </TextField>
+                    </Box>
+                  </Box>
+                );
+              })}
             </Box>
           </Box>
         )}
 
         {/* TAB 7: PORCENTAJES PCL */}
         {tabActual === 6 && (
-          <Box>
-            <Typography variant="h6" gutterBottom fontWeight="bold">
-              Porcentajes de Pérdida de Capacidad Laboral
-            </Typography>
-            <Divider sx={{ mb: 3 }} />
-
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={3}>
-                <TextField
-                  fullWidth
-                  label="Porcentaje PCL Total"
-                  type="number"
-                  value={formData.porcentajePCL}
-                  onChange={(e) => handleChange(null, "porcentajePCL", e.target.value)}
-                  required
-                  inputProps={{ min: 0, max: 100, step: 0.01 }}
-                  helperText="0 - 100%"
-                />
-              </Grid>
-
-              <Grid item xs={12} md={3}>
-                <TextField
-                  fullWidth
-                  label="Deficiencia"
-                  type="number"
-                  value={formData.deficiencia}
-                  onChange={(e) => handleChange(null, "deficiencia", e.target.value)}
-                  inputProps={{ min: 0, max: 50, step: 0.01 }}
-                  helperText="0 - 50%"
-                />
-              </Grid>
-
-              <Grid item xs={12} md={3}>
-                <TextField
-                  fullWidth
-                  label="Discapacidad"
-                  type="number"
-                  value={formData.discapacidad}
-                  onChange={(e) => handleChange(null, "discapacidad", e.target.value)}
-                  inputProps={{ min: 0, max: 50, step: 0.01 }}
-                  helperText="0 - 50%"
-                />
-              </Grid>
-
-              <Grid item xs={12} md={3}>
-                <TextField
-                  fullWidth
-                  label="Minusvalía"
-                  type="number"
-                  value={formData.minusvalia}
-                  onChange={(e) => handleChange(null, "minusvalia", e.target.value)}
-                  inputProps={{ min: 0, max: 50, step: 0.01 }}
-                  helperText="0 - 50%"
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Fecha de Estructuración"
-                  type="date"
-                  value={formData.fechaEstructuracion}
-                  onChange={(e) => handleChange(null, "fechaEstructuracion", e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Fecha de Declaratoria"
-                  type="date"
-                  value={formData.fechaDeclaratoria}
-                  onChange={(e) => handleChange(null, "fechaDeclaratoria", e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Origen"
-                  value={formData.origen}
-                  onChange={(e) => handleChange(null, "origen", e.target.value)}
-                >
-                  <MenuItem value="Enfermedad común">Enfermedad común</MenuItem>
-                  <MenuItem value="Enfermedad laboral">Enfermedad laboral</MenuItem>
-                  <MenuItem value="Accidente de trabajo">Accidente de trabajo</MenuItem>
-                  <MenuItem value="Accidente común">Accidente común</MenuItem>
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Riesgo"
-                  value={formData.riesgo}
-                  onChange={(e) => handleChange(null, "riesgo", e.target.value)}
-                >
-                  <MenuItem value="Común">Común</MenuItem>
-                  <MenuItem value="Laboral">Laboral</MenuItem>
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Nivel de Pérdida"
-                  value={formData.nivelPerdida}
-                  onChange={(e) => handleChange(null, "nivelPerdida", e.target.value)}
-                >
-                  <MenuItem value="Incapacidad permanente parcial">
-                    Incapacidad permanente parcial
-                  </MenuItem>
-                  <MenuItem value="Invalidez">Invalidez</MenuItem>
-                  <MenuItem value="Gran invalidez">Gran invalidez</MenuItem>
-                  <MenuItem value="Muerte">Muerte</MenuItem>
-                </TextField>
-              </Grid>
-            </Grid>
-          </Box>
+          <CalculadorPCL formData={formData} onChange={handleChange} />
         )}
 
         {/* TAB 8: OBSERVACIONES */}
@@ -1613,95 +2058,37 @@ export default function EditEvaluation() {
                 <Divider sx={{ mb: 2 }} />
               </Grid>
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Ayuda de Terceros para ABC y AVD"
-                  value={formData.ayudaTercerosABC.toString()}
-                  onChange={(e) =>
-                    handleChange(null, "ayudaTercerosABC", e.target.value === "true")
-                  }
-                >
-                  <MenuItem value="false">No</MenuItem>
-                  <MenuItem value="true">Sí</MenuItem>
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Ayuda de Terceros para Toma de Decisiones"
-                  value={formData.ayudaTercerosDecisiones.toString()}
-                  onChange={(e) =>
-                    handleChange(null, "ayudaTercerosDecisiones", e.target.value === "true")
-                  }
-                >
-                  <MenuItem value="false">No</MenuItem>
-                  <MenuItem value="true">Sí</MenuItem>
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Requiere Dispositivos de Apoyo"
-                  value={formData.requiereDispositivosApoyo.toString()}
-                  onChange={(e) =>
-                    handleChange(null, "requiereDispositivosApoyo", e.target.value === "true")
-                  }
-                >
-                  <MenuItem value="false">No</MenuItem>
-                  <MenuItem value="true">Sí</MenuItem>
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Enfermedad de Alto Costo/Catastrófica"
-                  value={formData.enfermedadAltoCosto.toString()}
-                  onChange={(e) =>
-                    handleChange(null, "enfermedadAltoCosto", e.target.value === "true")
-                  }
-                >
-                  <MenuItem value="false">No</MenuItem>
-                  <MenuItem value="true">Sí</MenuItem>
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Enfermedad Degenerativa"
-                  value={formData.enfermedadDegenerativa.toString()}
-                  onChange={(e) =>
-                    handleChange(null, "enfermedadDegenerativa", e.target.value === "true")
-                  }
-                >
-                  <MenuItem value="false">No</MenuItem>
-                  <MenuItem value="true">Sí</MenuItem>
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Enfermedad Progresiva"
-                  value={formData.enfermedadProgresiva.toString()}
-                  onChange={(e) =>
-                    handleChange(null, "enfermedadProgresiva", e.target.value === "true")
-                  }
-                >
-                  <MenuItem value="false">No</MenuItem>
-                  <MenuItem value="true">Sí</MenuItem>
-                </TextField>
-              </Grid>
+              {[
+                { key: "ayudaTercerosABC", label: "Ayuda de terceros para actividades básicas cotidianas (ABC) y AVD" },
+                { key: "ayudaTercerosDecisiones", label: "Ayuda de terceros para toma de decisiones" },
+                { key: "requiereDispositivosApoyo", label: "Requiere dispositivos de apoyo" },
+                { key: "enfermedadAltoCosto", label: "Enfermedad de alto costo / catastrófica" },
+                { key: "enfermedadDegenerativa", label: "Enfermedad degenerativa" },
+                { key: "enfermedadProgresiva", label: "Enfermedad progresiva" },
+              ].map(({ key, label }) => (
+                <Grid item xs={12} md={6} key={key}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 1,
+                      px: 2,
+                      py: 1.5,
+                      height: "100%",
+                    }}
+                  >
+                    <Typography variant="body2">{label}</Typography>
+                    <Switch
+                      checked={!!formData[key]}
+                      onChange={(e) => handleChange(null, key, e.target.checked)}
+                      color="primary"
+                    />
+                  </Box>
+                </Grid>
+              ))}
 
               <Grid item xs={12} md={6}>
                 <TextField
@@ -1739,14 +2126,70 @@ export default function EditEvaluation() {
                   label="Estado del Dictamen"
                   value={formData.estado}
                   onChange={(e) => handleChange(null, "estado", e.target.value)}
+                  helperText="Use el panel de workflow en la vista de detalle para avanzar instancias"
                 >
                   <MenuItem value="borrador">Borrador</MenuItem>
-                  <MenuItem value="completada">Completada</MenuItem>
-                  <MenuItem value="revisada">Revisada</MenuItem>
-                  <MenuItem value="aprobada">Aprobada</MenuItem>
+                  <MenuItem value="primera_oportunidad">1a Oportunidad</MenuItem>
+                  <MenuItem value="segunda_oportunidad">2a Oportunidad</MenuItem>
+                  <MenuItem value="primera_instancia">Junta Regional</MenuItem>
+                  <MenuItem value="segunda_instancia">Junta Nacional</MenuItem>
+                  <MenuItem value="aprobado">Ejecutoriado</MenuItem>
+                  <MenuItem value="recalificacion">Recalificación</MenuItem>
                 </TextField>
               </Grid>
             </Grid>
+          </Box>
+        )}
+
+        {/* TAB 9: DOCUMENTOS */}
+        {tabActual === 8 && (
+          <Box>
+            <Typography variant="h6" fontWeight="bold" gutterBottom>
+              Documentos Adjuntos
+            </Typography>
+            <Divider sx={{ mb: 3 }} />
+
+            <Box display="flex" alignItems="center" gap={2} mb={3}>
+              <Button
+                variant="contained"
+                component="label"
+                startIcon={subiendoDoc ? <CircularProgress size={16} /> : <UploadFileIcon />}
+                disabled={subiendoDoc}
+              >
+                {subiendoDoc ? "Subiendo..." : "Subir Documento"}
+                <input ref={fileRef} type="file" hidden onChange={handleSubirDoc} />
+              </Button>
+              <Typography variant="caption" color="text.secondary">
+                PDF, imágenes, Word, Excel — máx. 10 MB
+              </Typography>
+            </Box>
+
+            {documentos.length === 0 ? (
+              <Alert severity="info">No hay documentos adjuntos. Sube el primero.</Alert>
+            ) : (
+              <List dense sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
+                {documentos.map((doc, i) => (
+                  <ListItem key={doc._id} divider={i < documentos.length - 1}>
+                    <ListItemText
+                      primary={doc.nombre}
+                      secondary={`${(doc.tamaño / 1024).toFixed(1)} KB · ${new Date(doc.fechaSubida).toLocaleDateString("es-CO")}`}
+                    />
+                    <ListItemSecondaryAction>
+                      <Tooltip title="Descargar">
+                        <IconButton size="small" onClick={() => handleDescargarDoc(doc)}>
+                          <DownloadIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Eliminar">
+                        <IconButton size="small" color="error" onClick={() => handleEliminarDoc(doc._id)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                ))}
+              </List>
+            )}
           </Box>
         )}
 
@@ -1761,8 +2204,12 @@ export default function EditEvaluation() {
           </Button>
 
           {tabActual < 7 ? (
-            <Button variant="contained" onClick={() => setTabActual(Math.min(7, tabActual + 1))}>
+            <Button variant="contained" onClick={() => setTabActual(Math.min(8, tabActual + 1))}>
               Siguiente →
+            </Button>
+          ) : tabActual === 8 ? (
+            <Button variant="outlined" onClick={() => navigate(`/evaluations/${id}`)}>
+              Volver al detalle
             </Button>
           ) : (
             <Box display="flex" gap={2}>
