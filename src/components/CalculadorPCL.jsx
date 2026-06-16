@@ -13,6 +13,9 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import CloseIcon from '@mui/icons-material/Close';
 import { obtenerCatalogo, obtenerCapitulos, obtenerModuladores } from '../services/calculoService';
 import { calcularPCLLocal } from '../utils/calculoPCL';
 
@@ -118,6 +121,59 @@ const NIVEL_COLOR = {
   'Gran invalidez': 'error',
 };
 
+// ─── Motor de consistencia ────────────────────────────────────────────────────
+// Mapeo: capítulo → clase mínima (0=leve,1=mod,2=mod-severo,3=severo) → dominio AVD
+const CONSISTENCIA_MAPPING = {
+  1:  { d4: 1, d5: 1, d6: 2 },           // Musculo-esquelético
+  2:  { d4: 1, d5: 3, d6: 3 },           // Cardiovascular
+  3:  { d4: 1, d5: 2, d6: 2 },           // Respiratorio
+  4:  { d5: 2, d6: 2 },                  // Digestivo
+  5:  { d5: 2 },                         // Urinario
+  6:  { d1: 0, d3: 1, d4: 1, d5: 2, d6: 3 }, // Nervioso estructural (TCE, ACV, EM, lesión medular)
+  7:  { d4: 2, d5: 2 },                  // VIH / Inmunológico
+  8:  { d4: 2, d5: 2 },                  // Endocrino
+  9:  { d4: 2 },                         // Hematológico
+  10: { d5: 1 },                         // Dermatológico
+  11: { d1: 0, d3: 1, d4: 1, d5: 3, d6: 3 }, // Oftalmológico
+  12: { d1: 1, d3: 2, d4: 1, d5: 2, d6: 3 }, // Nervioso funcional
+  13: { d3: 2 },                         // Auditivo
+  14: { d1: 1, d3: 1, d5: 2, d6: 3 },   // Salud mental
+};
+
+// Convierte el id de clase a nivel de severidad (0-3)
+const CLASE_A_NIVEL = {
+  '0': -1,
+  'I': 0, '1': 0,
+  'II': 1, '2': 1,
+  'III': 2, '3': 2,
+  'IV': 3, '4': 3, 'V': 3, '5': 3,
+};
+
+const AVD_NOMBRES_MAP = {
+  d1: 'Aprendizaje y aplicación del conocimiento',
+  d3: 'Comunicación',
+  d4: 'Movilidad',
+  d5: 'Autocuidado personal',
+  d6: 'Vida doméstica',
+};
+
+const AVD_RAZONES = {
+  1:  { d4: 'limitación osteoarticular afecta desplazamiento y uso de extremidades',   d5: 'el dolor y la limitación articular comprometen el autocuidado', d6: 'la limitación severa restringe las actividades del hogar' },
+  2:  { d4: 'la disnea o claudicación limitan el desplazamiento',                       d5: 'la insuficiencia cardíaca severa limita el autocuidado por fatiga', d6: 'la cardiopatía severa restringe las labores domésticas' },
+  3:  { d4: 'la disnea en esfuerzo limita la movilidad',                               d5: 'la disnea moderada-severa afecta el autocuidado', d6: 'la disnea severa restringe las actividades del hogar' },
+  4:  { d5: 'los síntomas digestivos o la desnutrición afectan el autocuidado',         d6: 'la patología digestiva limita la preparación de alimentos' },
+  5:  { d5: 'la insuficiencia renal grave compromete la higiene y el autocuidado' },
+  6:  { d1: 'toda lesión neurológica puede comprometer cognición y aprendizaje',        d3: 'la afasia o disartria limitan la comunicación',                  d4: 'el déficit motor afecta la movilidad', d5: 'la dependencia neurológica compromete el autocuidado', d6: 'la dependencia severa restringe la vida doméstica' },
+  7:  { d4: 'la inmunodeficiencia avanzada limita la deambulación por fatiga',          d5: 'las complicaciones del SIDA avanzado comprometen el autocuidado' },
+  8:  { d4: 'las complicaciones crónicas endocrinas limitan la movilidad',              d5: 'el descontrol metabólico severo compromete el autocuidado' },
+  9:  { d4: 'la anemia severa o hemopatía grave limita la deambulación' },
+  10: { d5: 'las lesiones cutáneas extensas afectan la higiene y el autocuidado' },
+  11: { d1: 'la pérdida visual compromete la lectura y el aprendizaje',                 d3: 'la baja visión dificulta la comunicación escrita',               d4: 'la baja visión severa limita la movilidad independiente', d5: 'la ceguera limita el autocuidado sin entrenamiento especializado', d6: 'la ceguera severa restringe las actividades del hogar' },
+  12: { d1: 'el trastorno neurológico compromete la cognición y el aprendizaje',        d3: 'la disartria o afasia afectan la comunicación',                 d4: 'el trastorno motor afecta la movilidad', d5: 'la discapacidad neurológica severa compromete el autocuidado', d6: 'la dependencia grave restringe las labores domésticas' },
+  13: { d3: 'la hipoacusia severa compromete la comunicación verbal y social' },
+  14: { d1: 'el trastorno mental afecta la concentración y el aprendizaje',             d3: 'el aislamiento social afecta la comunicación',                  d5: 'el deterioro funcional compromete el autocuidado', d6: 'la desorganización grave restringe la vida doméstica' },
+};
+
 // ─── Sección A: Restricciones del rol laboral (máx. 19 pts) ─────────────────
 const ROL_LABORAL_ITEMS = [
   { id: "rl1",  puntos: 2, descripcion: "Esfuerzo físico intenso: levantar, cargar, empujar o jalar ≥ 25 lb (11 kg) de forma regular" },
@@ -196,6 +252,43 @@ export default function CalculadorPCL({ formData, onChange }) {
     () => calcularPCLLocal(deficiencias, rolLaboral, avds),
     [deficiencias, rolLaboral, avds]
   );
+
+  // ── Motor de consistencia ─────────────────────────────────────────────────
+  const [sugerenciasRevisadas, setSugerenciasRevisadas] = useState(new Set());
+  const avdSectionRef = useRef(null);
+
+  const sugerencias = useMemo(() => {
+    if (deficiencias.length === 0) return [];
+    const pending = {}; // domId → { causas[], urgencia }
+    for (const def of deficiencias) {
+      const cap = parseInt((def.capitulo || '').replace('Cap. ', ''));
+      const nivel = CLASE_A_NIVEL[def.clase] ?? -1;
+      if (nivel < 0 || isNaN(cap)) continue;
+      const mapping = CONSISTENCIA_MAPPING[cap];
+      if (!mapping) continue;
+      for (const [domId, minNivel] of Object.entries(mapping)) {
+        if (nivel < minNivel) continue;
+        const totalDom = Object.values(avds[domId] || {}).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+        if (totalDom > 0) continue; // ya calificado
+        if (!pending[domId]) pending[domId] = { causas: [], urgencia: 'media' };
+        if (!pending[domId].causas.includes(def.descripcion)) pending[domId].causas.push(def.descripcion);
+        if (nivel >= 2) pending[domId].urgencia = 'alta';
+      }
+    }
+    return Object.entries(pending)
+      .filter(([domId]) => !sugerenciasRevisadas.has(domId))
+      .map(([domId, info]) => ({ domId, nombre: AVD_NOMBRES_MAP[domId] || domId, ...info }))
+      .sort((a, b) => (b.urgencia === 'alta' ? 1 : 0) - (a.urgencia === 'alta' ? 1 : 0));
+  }, [deficiencias, avds, sugerenciasRevisadas]);
+
+  const handleAbrirAVD = (domId) => {
+    setExpandedDomain(domId);
+    setTimeout(() => avdSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+  };
+
+  const descartarSugerencia = (domId) => {
+    setSugerenciasRevisadas(prev => new Set([...prev, domId]));
+  };
 
   // ── Sincronizar PCL al formData del padre solo cuando cambia el valor ─────
   const prevPCL = useRef(null);
@@ -535,6 +628,86 @@ export default function CalculadorPCL({ formData, onChange }) {
         </Button>
       </Paper>
 
+      {/* ══ MOTOR DE CONSISTENCIA ══════════════════════════════════════════ */}
+      {deficiencias.length > 0 && (
+        <Paper variant="outlined" sx={{ p: 2, mb: 3, borderColor: sugerencias.length > 0 ? 'warning.main' : 'success.main' }}>
+          <Box display="flex" alignItems="center" gap={1} mb={sugerencias.length > 0 ? 2 : 0}>
+            {sugerencias.length > 0
+              ? <WarningAmberIcon color="warning" />
+              : <CheckCircleOutlineIcon color="success" />}
+            <Box flex={1}>
+              <Typography variant="subtitle2" fontWeight="bold"
+                color={sugerencias.length > 0 ? 'warning.dark' : 'success.dark'}>
+                {sugerencias.length > 0
+                  ? `Motor de consistencia — ${sugerencias.length} dominio${sugerencias.length > 1 ? 's' : ''} sin puntuar`
+                  : 'Consistencia verificada'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {sugerencias.length > 0
+                  ? 'Basado en las deficiencias registradas, los siguientes dominios AVD probablemente deberían tener un puntaje mayor a 0.'
+                  : 'Los dominios AVD son coherentes con las deficiencias registradas en Título I.'}
+              </Typography>
+            </Box>
+          </Box>
+
+          {sugerencias.map(({ domId, nombre, causas, urgencia }) => {
+            const cap = parseInt((deficiencias.find(d => {
+              const c = parseInt((d.capitulo || '').replace('Cap. ', ''));
+              return CONSISTENCIA_MAPPING[c]?.[domId] !== undefined;
+            })?.capitulo || '').replace('Cap. ', ''));
+            const razon = AVD_RAZONES[cap]?.[domId] || 'afecta este dominio funcional';
+            return (
+              <Box key={domId} sx={{
+                p: 1.5, mb: 1, borderRadius: 1,
+                bgcolor: urgencia === 'alta' ? 'warning.50' : 'grey.50',
+                border: '1px solid', borderColor: urgencia === 'alta' ? 'warning.200' : 'grey.300',
+              }}>
+                <Box display="flex" alignItems="flex-start" justifyContent="space-between" gap={1}>
+                  <Box flex={1}>
+                    <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                      <Chip
+                        label={domId.toUpperCase()}
+                        size="small"
+                        color={urgencia === 'alta' ? 'warning' : 'default'}
+                        sx={{ fontWeight: 'bold', minWidth: 36 }}
+                      />
+                      <Typography variant="body2" fontWeight="bold">{nombre}</Typography>
+                      {urgencia === 'alta' && (
+                        <Chip label="Alta prioridad" size="small" color="warning" variant="outlined" />
+                      )}
+                    </Box>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                      Motivo: {razon}.
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Relacionado con: {causas.slice(0, 2).map((c, i) => (
+                        <em key={i}>{c}{i < Math.min(causas.length, 2) - 1 ? ', ' : ''}</em>
+                      ))}{causas.length > 2 && ` y ${causas.length - 2} más`}.
+                    </Typography>
+                  </Box>
+                  <Stack direction="row" spacing={0.5} alignItems="flex-start">
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<OpenInNewIcon fontSize="small" />}
+                      onClick={() => handleAbrirAVD(domId)}
+                      sx={{ whiteSpace: 'nowrap' }}
+                    >
+                      Abrir AVD
+                    </Button>
+                    <Tooltip title="Marcar como revisado (descartar sugerencia)">
+                      <IconButton size="small" onClick={() => descartarSugerencia(domId)}>
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                </Box>
+              </Box>
+            );
+          })}
+        </Paper>
+      )}
+
       {/* ══ TÍTULO II — ROL LABORAL ════════════════════════════════════════ */}
       <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
@@ -731,7 +904,7 @@ export default function CalculadorPCL({ formData, onChange }) {
         <Divider sx={{ mb: 2 }} />
 
         {/* AVDs — dominios CIF */}
-        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+        <Typography ref={avdSectionRef} variant="subtitle2" fontWeight="bold" gutterBottom>
           Actividades de vida diaria — CIF (máx. 20%)
         </Typography>
         <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{ mb: 2 }}>
