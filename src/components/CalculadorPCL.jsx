@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
@@ -231,6 +232,7 @@ export default function CalculadorPCL({ formData, onChange }) {
   const [cfpBase,  setCfpBase]  = useState(null);                   // valor referencia de la clase
   const [cfmSels,  setCfmSels]  = useState({ cfm1: null, cfm2: null, cfm3: null });
   const [loadingMod, setLoadingMod] = useState(false);
+  const [editIdx, setEditIdx]   = useState(null); // null=nuevo, number=editando fila existente
 
   // Accesores al formData — useMemo para evitar objetos nuevos en cada render
   const deficiencias = useMemo(() => formData.detalleDeficiencias || [], [formData.detalleDeficiencias]);
@@ -387,7 +389,11 @@ export default function CalculadorPCL({ formData, onChange }) {
       cfmDetalle:       Object.keys(cfmDetalle).length > 0 ? { cfmTotal, ...cfmDetalle } : undefined,
     };
 
-    onChange(null, 'detalleDeficiencias', [...deficiencias, nueva]);
+    if (editIdx !== null) {
+      onChange(null, 'detalleDeficiencias', deficiencias.map((d, i) => i === editIdx ? nueva : d));
+    } else {
+      onChange(null, 'detalleDeficiencias', [...deficiencias, nueva]);
+    }
     setDialogOpen(false);
     resetDialog();
   };
@@ -395,6 +401,27 @@ export default function CalculadorPCL({ formData, onChange }) {
   const resetDialog = () => {
     setCapSel(''); setTablaSel(null); setClaseSel(null);
     setValorDial(''); setCfpBase(null); setCfmSels({ cfm1: null, cfm2: null, cfm3: null });
+    setEditIdx(null);
+  };
+
+  const handleEditarDeficiencia = (idx) => {
+    const d = deficiencias[idx];
+    const cap = (d.capitulo || '').replace('Cap. ', '');
+    const tabla = (tablasPorCap[cap] || []).find(t => t.id === d.idCatalogo);
+    if (!tabla) return;
+    const cfm = d.cfmDetalle;
+    setCapSel(cap);
+    setTablaSel(tabla);
+    setClaseSel(d.clase);
+    setCfpBase(d.valorAsignado - (cfm?.cfmTotal ?? 0));
+    setCfmSels({
+      cfm1: cfm?.cfm1?.valor ?? null,
+      cfm2: cfm?.cfm2?.valor ?? null,
+      cfm3: cfm?.cfm3?.valor ?? null,
+    });
+    setValorDial(String(d.valorAsignado));
+    setEditIdx(idx);
+    setDialogOpen(true);
   };
 
   const eliminarDeficiencia = idx => {
@@ -601,9 +628,16 @@ export default function CalculadorPCL({ formData, onChange }) {
                         </Tooltip>
                       </TableCell>
                       <TableCell>
-                        <IconButton size="small" color="error" onClick={() => eliminarDeficiencia(i)}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
+                        <Tooltip title="Editar CFM y valor">
+                          <IconButton size="small" color="primary" onClick={() => handleEditarDeficiencia(i)}>
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Eliminar deficiencia">
+                          <IconButton size="small" color="error" onClick={() => eliminarDeficiencia(i)}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                       </TableCell>
                     </TableRow>
                   );
@@ -1045,7 +1079,7 @@ export default function CalculadorPCL({ formData, onChange }) {
       {/* ══ DIÁLOGO — AGREGAR DEFICIENCIA ══════════════════════════════════ */}
       <Dialog open={dialogOpen} onClose={() => { setDialogOpen(false); resetDialog(); }} maxWidth="md" fullWidth keepMounted={false} disablePortal>
         <DialogTitle>
-          Agregar deficiencia — Catálogo Manual Único (Dec. 1507/2014)
+          {editIdx !== null ? 'Editar deficiencia' : 'Agregar deficiencia'} — Catálogo Manual Único (Dec. 1507/2014)
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
@@ -1261,7 +1295,7 @@ export default function CalculadorPCL({ formData, onChange }) {
             onClick={handleAgregarDeficiencia}
             disabled={!tablaSel || !claseSel || valorDial === ''}
           >
-            Agregar deficiencia
+            {editIdx !== null ? 'Guardar cambios' : 'Agregar deficiencia'}
           </Button>
         </DialogActions>
       </Dialog>
