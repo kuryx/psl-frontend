@@ -1051,17 +1051,55 @@ export const generarPDFDictamen = async (evaluacion) => {
     ? rl.totalRolLaboral
     : (rl.restriccionesRolLaboral ?? 0) + (rl.restriccionesAutosuficiencia ?? 0) + (rl.restriccionesEdad ?? 0);
 
+  // Construir filas detalladas del rol laboral con ítems del checklist
+  const ROL_ITEMS_NOMBRES = {
+    rl1: "Esfuerzo físico intenso (≥ 25 lb)", rl2: "Bipedestación o marcha prolongada",
+    rl3: "Movimientos repetitivos MMSS/tronco", rl4: "Exposición a agentes físicos adversos",
+    rl5: "Exposición a agentes químicos",       rl6: "Maquinaria peligrosa o trabajo en alturas",
+    rl7: "Conducción de vehículos de trabajo",  rl8: "Concentración sostenida / decisiones complejas",
+    rl9: "Interacción social requerida por el rol", rl10: "Restricción global laboral",
+  };
+  const AUTOSUF_NOMBRES = {
+    as1: "No puede manejar dinero o transacciones",
+    as2: "Dependencia económica de terceros para básicos",
+    as3: "Pérdida total de capacidad de generar ingresos",
+  };
+
+  const rlItems  = rl.restriccionesRolLaboralItems || [];
+  const asItems  = rl.restriccionesAutosuficienciaItems || [];
+  const rlDetalle = rlItems.map(id => `  • ${ROL_ITEMS_NOMBRES[id] || id}`).join("\n") || "  (ninguna marcada)";
+  const asDetalle = asItems.map(id => `  • ${AUTOSUF_NOMBRES[id] || id}`).join("\n") || "  (ninguna marcada)";
+
+  const edadBandas = [
+    { maxEdad: 35, puntos: 0, label: "≤ 35 años" }, { maxEdad: 45, puntos: 2, label: "36–45 años" },
+    { maxEdad: 55, puntos: 4, label: "46–55 años" }, { maxEdad: Infinity, puntos: 6, label: "> 55 años" },
+  ];
+  const edadPuntos = rl.restriccionesEdad ?? 0;
+  const edadBanda = edadBandas.find(b => edadPuntos === b.puntos)?.label || `${edadPuntos} pts`;
+
   autoTable(doc, {
     ...tblOpts({ theme: "striped" }),
     startY: y,
-    head: [["Componente del Rol Laboral", "Puntaje"]],
+    head: [["Componente del Rol Laboral", "Pts"]],
     body: [
-      ["Restricciones del rol laboral",              `${rl.restriccionesRolLaboral ?? 0}`],
-      ["Restricciones autosuficiencia económica",    `${rl.restriccionesAutosuficiencia ?? 0}`],
-      ["Restricciones en función de la edad cronológica", `${rl.restriccionesEdad ?? 0}`],
+      [
+        { content: `Sección A — Restricciones del rol laboral\n${rlDetalle}`,
+          styles: { fontStyle: "normal", cellPadding: { top: 2, bottom: 2, left: 3, right: 1 } } },
+        `${rl.restriccionesRolLaboral ?? 0}`,
+      ],
+      [
+        { content: `Sección B — Restricciones de autosuficiencia económica\n${asDetalle}`,
+          styles: { fontStyle: "normal", cellPadding: { top: 2, bottom: 2, left: 3, right: 1 } } },
+        `${rl.restriccionesAutosuficiencia ?? 0}`,
+      ],
+      [
+        { content: `Sección C — Restricciones por edad cronológica (${edadBanda})`,
+          styles: { fontStyle: "normal" } },
+        `${edadPuntos}`,
+      ],
     ],
     foot: [[
-      { content: "Sumatoria rol laboral, autosuficiencia económica y edad (30%)", styles: { fontStyle: "bold", halign: "left", fillColor: C.header } },
+      { content: "Sumatoria rol laboral, autosuficiencia económica y edad (máx. 30%)", styles: { fontStyle: "bold", halign: "left", fillColor: C.header } },
       { content: `${totalRL.toFixed(2)}%`, styles: { fontStyle: "bold", fillColor: C.success, textColor: C.white, halign: "center" } },
     ]],
     headStyles: { fillColor: C.secondary, textColor: C.white, fontStyle: "bold", fontSize: 8.5 },

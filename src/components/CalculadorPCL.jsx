@@ -5,6 +5,7 @@ import {
   Paper, Chip, Alert, Divider, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, Collapse, Card, CardContent,
   LinearProgress, CircularProgress, Tooltip, Stack,
+  Checkbox, FormControlLabel, FormGroup,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -117,6 +118,43 @@ const NIVEL_COLOR = {
   'Gran invalidez': 'error',
 };
 
+// ─── Sección A: Restricciones del rol laboral (máx. 19 pts) ─────────────────
+const ROL_LABORAL_ITEMS = [
+  { id: "rl1",  puntos: 2, descripcion: "Esfuerzo físico intenso: levantar, cargar, empujar o jalar ≥ 25 lb (11 kg) de forma regular" },
+  { id: "rl2",  puntos: 2, descripcion: "Bipedestación o marcha prolongada: permanecer de pie o caminar > 2 horas continuas" },
+  { id: "rl3",  puntos: 2, descripcion: "Movimientos repetitivos de miembros superiores o tronco: ensamble, digitación, costura" },
+  { id: "rl4",  puntos: 2, descripcion: "Exposición a agentes físicos adversos: ruido intenso, vibración, temperaturas extremas, radiación" },
+  { id: "rl5",  puntos: 2, descripcion: "Exposición a agentes químicos: polvos, gases, vapores, solventes o irritantes" },
+  { id: "rl6",  puntos: 2, descripcion: "Manejo de maquinaria peligrosa o trabajo en alturas (> 1.5 m sobre el nivel del suelo)" },
+  { id: "rl7",  puntos: 2, descripcion: "Conducción de vehículos de trabajo: camiones, montacargas, maquinaria pesada u otros" },
+  { id: "rl8",  puntos: 2, descripcion: "Concentración sostenida o toma de decisiones complejas bajo presión de tiempo" },
+  { id: "rl9",  puntos: 2, descripcion: "Interacción social requerida por el rol: atención al cliente, docencia, trabajo en equipo estrecho" },
+  { id: "rl10", puntos: 1, descripcion: "Restricción global: no puede desempeñar ninguna forma de empleo competitivo remunerado" },
+];
+
+// ─── Sección B: Restricciones de autosuficiencia económica (máx. 5 pts) ─────
+const AUTOSUF_ITEMS = [
+  { id: "as1", puntos: 2, descripcion: "No puede manejar dinero, realizar transacciones bancarias o administrar sus finanzas básicas" },
+  { id: "as2", puntos: 2, descripcion: "Depende económicamente de terceros para cubrir necesidades básicas (alimentación, transporte, vivienda)" },
+  { id: "as3", puntos: 1, descripcion: "Pérdida total de capacidad de generar ingresos propios por su condición de salud" },
+];
+
+// ─── Sección C: Edad cronológica — Decreto 1507/2014 Tabla 4 (máx. 6 pts) ──
+const EDAD_TABLA = [
+  { maxEdad: 35, puntos: 0, label: "≤ 35 años — Sin restricción adicional por edad" },
+  { maxEdad: 45, puntos: 2, label: "36–45 años — Restricción leve por edad" },
+  { maxEdad: 55, puntos: 4, label: "46–55 años — Restricción moderada por edad" },
+  { maxEdad: Infinity, puntos: 6, label: "> 55 años — Restricción máxima por edad" },
+];
+
+const calcularPuntosEdad = (fechaNacimiento) => {
+  if (!fechaNacimiento) return 0;
+  const hoy = new Date();
+  const nac = new Date(fechaNacimiento);
+  const edad = Math.floor((hoy - nac) / (365.25 * 24 * 60 * 60 * 1000));
+  return (EDAD_TABLA.find(r => edad <= r.maxEdad) || EDAD_TABLA.at(-1)).puntos;
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 export default function CalculadorPCL({ formData, onChange }) {
   const [capitulos,      setCapitulos]      = useState([]);
@@ -140,8 +178,18 @@ export default function CalculadorPCL({ formData, onChange }) {
 
   // Accesores al formData — useMemo para evitar objetos nuevos en cada render
   const deficiencias = useMemo(() => formData.detalleDeficiencias || [], [formData.detalleDeficiencias]);
-  const rolLaboral   = useMemo(() => formData.valoracionRolLaboral || { restriccionesRolLaboral: 0, restriccionesAutosuficiencia: 0, restriccionesEdad: 0 }, [formData.valoracionRolLaboral]);
+  const rolLaboral   = useMemo(() => formData.valoracionRolLaboral || {
+    restriccionesRolLaboral: 0,
+    restriccionesRolLaboralItems: [],
+    restriccionesAutosuficiencia: 0,
+    restriccionesAutosuficienciaItems: [],
+    restriccionesEdad: 0,
+  }, [formData.valoracionRolLaboral]);
   const avds         = useMemo(() => formData.avdsDetalle || initAvds(), [formData.avdsDetalle]);
+
+  // Ref siempre actualizado — evita closures obsoletos en useEffects
+  const rolLaboralRef = useRef(rolLaboral);
+  rolLaboralRef.current = rolLaboral;
 
   // ── Resultado calculado — derivado puro, sin estado ──────────────────────
   const resultado = useMemo(
@@ -193,6 +241,13 @@ export default function CalculadorPCL({ formData, onChange }) {
       finally { setLoadingMod(false); }
     })();
   }, [capSel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Auto-calcular puntos de edad (Sección C) al cambiar la fecha ─────────
+  useEffect(() => {
+    const ptos = calcularPuntosEdad(formData.fechaNacimiento);
+    if (rolLaboralRef.current.restriccionesEdad === ptos) return;
+    onChange(null, 'valoracionRolLaboral', { ...rolLaboralRef.current, restriccionesEdad: ptos });
+  }, [formData.fechaNacimiento, onChange]);
 
   // ── Recalcular valorDial cuando cambian los CFM ───────────────────────────
   useEffect(() => {
@@ -255,6 +310,22 @@ export default function CalculadorPCL({ formData, onChange }) {
 
   const handleRolChange = (campo, val) => {
     onChange(null, 'valoracionRolLaboral', { ...rolLaboral, [campo]: parseFloat(val) || 0 });
+  };
+
+  const handleRolItemToggle = (itemId) => {
+    const current = rolLaboralRef.current;
+    const items = current.restriccionesRolLaboralItems || [];
+    const newItems = items.includes(itemId) ? items.filter(id => id !== itemId) : [...items, itemId];
+    const total = Math.min(19, ROL_LABORAL_ITEMS.filter(i => newItems.includes(i.id)).reduce((s, i) => s + i.puntos, 0));
+    onChange(null, 'valoracionRolLaboral', { ...current, restriccionesRolLaboralItems: newItems, restriccionesRolLaboral: total });
+  };
+
+  const handleAutosufItemToggle = (itemId) => {
+    const current = rolLaboralRef.current;
+    const items = current.restriccionesAutosuficienciaItems || [];
+    const newItems = items.includes(itemId) ? items.filter(id => id !== itemId) : [...items, itemId];
+    const total = Math.min(5, AUTOSUF_ITEMS.filter(i => newItems.includes(i.id)).reduce((s, i) => s + i.puntos, 0));
+    onChange(null, 'valoracionRolLaboral', { ...current, restriccionesAutosuficienciaItems: newItems, restriccionesAutosuficiencia: total });
   };
 
   const handleAvdChange = (dom, item, val) => {
@@ -482,62 +553,180 @@ export default function CalculadorPCL({ formData, onChange }) {
           )}
         </Box>
 
-        {/* Puntuaciones rol laboral */}
-        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-          Rol laboral (máx. 30%)
-        </Typography>
-        <Grid container spacing={2} mb={2}>
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth size="small"
-              label="Restricciones del rol laboral"
-              type="number"
-              value={rolLaboral.restriccionesRolLaboral || 0}
-              onChange={e => handleRolChange('restriccionesRolLaboral', e.target.value)}
-              inputProps={{ min: 0, max: 19, step: 1 }}
-              helperText="Puntos 0 – 19"
+        {/* ── Sección A — Restricciones del rol laboral (máx. 19 pts) ── */}
+        <Box sx={{ mb: 2.5 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="subtitle2" fontWeight="bold">
+              Sección A — Restricciones del rol laboral
+            </Typography>
+            <Chip
+              label={`${rolLaboral.restriccionesRolLaboral ?? 0} / 19 pts`}
+              color={(rolLaboral.restriccionesRolLaboral ?? 0) > 0 ? 'primary' : 'default'}
+              size="small"
             />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth size="small"
-              label="Restricciones autosuficiencia económica"
-              type="number"
-              value={rolLaboral.restriccionesAutosuficiencia || 0}
-              onChange={e => handleRolChange('restriccionesAutosuficiencia', e.target.value)}
-              inputProps={{ min: 0, max: 5, step: 1 }}
-              helperText="Puntos 0 – 5"
-            />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth size="small"
-              label="Restricciones por edad cronológica"
-              type="number"
-              value={rolLaboral.restriccionesEdad || 0}
-              onChange={e => handleRolChange('restriccionesEdad', e.target.value)}
-              inputProps={{ min: 0, max: 6, step: 1 }}
-              helperText="Puntos 0 – 6"
-            />
-          </Grid>
-          {resultado && (
-            <Grid item xs={12}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1.5, bgcolor: 'grey.50', borderRadius: 1 }}>
-                <Typography variant="body2" sx={{ minWidth: 150 }}>
-                  Total rol laboral:
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={(resultado.tituloII.totalRolLaboral / 30) * 100}
-                  sx={{ flex: 1, height: 8, borderRadius: 4 }}
+          </Box>
+          <FormGroup>
+            {ROL_LABORAL_ITEMS.map(item => {
+              const checked = (rolLaboral.restriccionesRolLaboralItems || []).includes(item.id);
+              return (
+                <FormControlLabel
+                  key={item.id}
+                  sx={{ alignItems: 'flex-start', mb: 0.5 }}
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={checked}
+                      onChange={() => handleRolItemToggle(item.id)}
+                      sx={{ pt: 0.3 }}
+                    />
+                  }
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                      <Typography variant="body2" sx={{ mt: 0.2 }}>{item.descripcion}</Typography>
+                      <Chip
+                        label={`+${item.puntos}`}
+                        size="small"
+                        color={checked ? 'warning' : 'default'}
+                        variant={checked ? 'filled' : 'outlined'}
+                        sx={{ minWidth: 36, flexShrink: 0 }}
+                      />
+                    </Box>
+                  }
                 />
-                <Typography variant="h6" fontWeight="bold" color="primary.main" sx={{ minWidth: 50 }}>
-                  {resultado.tituloII.totalRolLaboral.toFixed(2)}%
+              );
+            })}
+          </FormGroup>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1, p: 1.5, bgcolor: 'grey.50', borderRadius: 1 }}>
+            <Typography variant="body2" sx={{ minWidth: 80 }}>Subtotal A:</Typography>
+            <LinearProgress
+              variant="determinate"
+              value={((rolLaboral.restriccionesRolLaboral ?? 0) / 19) * 100}
+              sx={{ flex: 1, height: 6, borderRadius: 3 }}
+            />
+            <Typography variant="body2" fontWeight="bold" color="primary.main" sx={{ minWidth: 55 }}>
+              {rolLaboral.restriccionesRolLaboral ?? 0} / 19 pts
+            </Typography>
+          </Box>
+        </Box>
+
+        <Divider sx={{ mb: 2.5 }} />
+
+        {/* ── Sección B — Autosuficiencia económica (máx. 5 pts) ─────── */}
+        <Box sx={{ mb: 2.5 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="subtitle2" fontWeight="bold">
+              Sección B — Restricciones de autosuficiencia económica
+            </Typography>
+            <Chip
+              label={`${rolLaboral.restriccionesAutosuficiencia ?? 0} / 5 pts`}
+              color={(rolLaboral.restriccionesAutosuficiencia ?? 0) > 0 ? 'primary' : 'default'}
+              size="small"
+            />
+          </Box>
+          <FormGroup>
+            {AUTOSUF_ITEMS.map(item => {
+              const checked = (rolLaboral.restriccionesAutosuficienciaItems || []).includes(item.id);
+              return (
+                <FormControlLabel
+                  key={item.id}
+                  sx={{ alignItems: 'flex-start', mb: 0.5 }}
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={checked}
+                      onChange={() => handleAutosufItemToggle(item.id)}
+                      sx={{ pt: 0.3 }}
+                    />
+                  }
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                      <Typography variant="body2" sx={{ mt: 0.2 }}>{item.descripcion}</Typography>
+                      <Chip
+                        label={`+${item.puntos}`}
+                        size="small"
+                        color={checked ? 'warning' : 'default'}
+                        variant={checked ? 'filled' : 'outlined'}
+                        sx={{ minWidth: 36, flexShrink: 0 }}
+                      />
+                    </Box>
+                  }
+                />
+              );
+            })}
+          </FormGroup>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1, p: 1.5, bgcolor: 'grey.50', borderRadius: 1 }}>
+            <Typography variant="body2" sx={{ minWidth: 80 }}>Subtotal B:</Typography>
+            <LinearProgress
+              variant="determinate"
+              value={((rolLaboral.restriccionesAutosuficiencia ?? 0) / 5) * 100}
+              sx={{ flex: 1, height: 6, borderRadius: 3 }}
+            />
+            <Typography variant="body2" fontWeight="bold" color="primary.main" sx={{ minWidth: 55 }}>
+              {rolLaboral.restriccionesAutosuficiencia ?? 0} / 5 pts
+            </Typography>
+          </Box>
+        </Box>
+
+        <Divider sx={{ mb: 2.5 }} />
+
+        {/* ── Sección C — Edad cronológica (auto-calculado) ─────────────── */}
+        <Box sx={{ mb: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="subtitle2" fontWeight="bold">
+              Sección C — Restricciones por edad cronológica
+            </Typography>
+            <Chip
+              label={`${rolLaboral.restriccionesEdad ?? 0} / 6 pts`}
+              color={(rolLaboral.restriccionesEdad ?? 0) > 0 ? 'primary' : 'default'}
+              size="small"
+            />
+          </Box>
+          {(() => {
+            const ptos = rolLaboral.restriccionesEdad ?? 0;
+            const banda = EDAD_TABLA.find(r => ptos === r.puntos) || EDAD_TABLA.at(-1);
+            const sinFecha = !formData.fechaNacimiento;
+            return (
+              <Alert
+                severity={sinFecha ? 'warning' : ptos > 0 ? 'info' : 'success'}
+                sx={{ mb: 1 }}
+              >
+                <Typography variant="body2">
+                  {sinFecha
+                    ? 'Ingrese la fecha de nacimiento del paciente para calcular automáticamente los puntos por edad.'
+                    : `${banda.label} → ${ptos} puntos asignados automáticamente (Decreto 1507/2014 Tabla 4)`}
                 </Typography>
-              </Box>
-            </Grid>
-          )}
-        </Grid>
+              </Alert>
+            );
+          })()}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1.5, bgcolor: 'grey.50', borderRadius: 1 }}>
+            <Typography variant="body2" sx={{ minWidth: 80 }}>Subtotal C:</Typography>
+            <LinearProgress
+              variant="determinate"
+              value={((rolLaboral.restriccionesEdad ?? 0) / 6) * 100}
+              sx={{ flex: 1, height: 6, borderRadius: 3 }}
+            />
+            <Typography variant="body2" fontWeight="bold" color="primary.main" sx={{ minWidth: 55 }}>
+              {rolLaboral.restriccionesEdad ?? 0} / 6 pts
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* ── Total rol laboral ──────────────────────────────────────────── */}
+        {resultado && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1.5, bgcolor: 'primary.50', border: '1px solid', borderColor: 'primary.200', borderRadius: 1 }}>
+            <Typography variant="body2" fontWeight="bold" sx={{ minWidth: 130 }}>
+              Total Rol Laboral (A+B+C):
+            </Typography>
+            <LinearProgress
+              variant="determinate"
+              value={(resultado.tituloII.totalRolLaboral / 30) * 100}
+              sx={{ flex: 1, height: 8, borderRadius: 4 }}
+            />
+            <Typography variant="h6" fontWeight="bold" color="primary.main" sx={{ minWidth: 55 }}>
+              {resultado.tituloII.totalRolLaboral.toFixed(2)}%
+            </Typography>
+          </Box>
+        )}
 
         <Divider sx={{ mb: 2 }} />
 
