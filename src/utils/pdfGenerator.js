@@ -946,16 +946,23 @@ export const generarPDFDictamen = async (evaluacion) => {
       for (const [cap, capDefs] of capMap) {
         if (y > 255) y = nuevaPag(doc, logo, numDict);
 
-        const rows = capDefs.map((d) => [
-          d.descripcion || d.claseDescripcion || "",
-          (d.capitulo || "").replace("Cap. ", ""),
-          d.tabla || "—",
-          d.clase || "NA",
-          "NA", "NA", "NA",
-          `${d.valorAsignado ?? 0}%`,
-          "—",
-          `${d.valorAsignado ?? 0}%`,
-        ]);
+        const rows = capDefs.map((d) => {
+          const cfm = d.cfmDetalle;
+          const cfm1 = cfm?.cfm1 ? `+${cfm.cfm1.valor}` : "—";
+          const cfm2 = cfm?.cfm2 ? `+${cfm.cfm2.valor}` : "—";
+          const cfm3 = cfm?.cfm3 ? `+${cfm.cfm3.valor}` : "—";
+          const cfpBase = cfm ? (d.valorAsignado - (cfm.cfmTotal ?? 0)) : (d.valorAsignado ?? 0);
+          return [
+            d.descripcion || d.claseDescripcion || "",
+            (d.capitulo || "").replace("Cap. ", ""),
+            d.tabla || "—",
+            `${cfpBase}%`,
+            cfm1, cfm2, cfm3,
+            `${d.valorAsignado ?? 0}%`,
+            d.clase || "—",
+            `${d.valorAsignado ?? 0}%`,
+          ];
+        });
 
         // Combinar Baltazar dentro del capítulo
         const { total: capTotal } = combinarBalthazard(capDefs.map((d) => d.valorAsignado ?? 0));

@@ -11,6 +11,11 @@ export const obtenerCatalogo = async (capitulo = null) => {
   return res.data.tablas;
 };
 
+export const obtenerModuladores = async (capitulo) => {
+  const res = await api.get(`/calculo/moduladores/${capitulo}`);
+  return res.data.moduladores;
+};
+
 export const calcularPCLApi = async (detalleDeficiencias, rolLaboral, avds) => {
   const res = await api.post('/calculo/calcular', { detalleDeficiencias, rolLaboral, avds });
   return res.data;

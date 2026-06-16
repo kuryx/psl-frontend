@@ -4,7 +4,7 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Paper, Chip, Alert, Divider, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, Collapse, Card, CardContent,
-  LinearProgress, CircularProgress,
+  LinearProgress, CircularProgress, Tooltip, Stack,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -12,7 +12,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { obtenerCatalogo, obtenerCapitulos } from '../services/calculoService';
+import { obtenerCatalogo, obtenerCapitulos, obtenerModuladores } from '../services/calculoService';
 import { calcularPCLLocal } from '../utils/calculoPCL';
 
 // ─── Dominios CIF para Título II ─────────────────────────────────────────────
@@ -126,11 +126,17 @@ export default function CalculadorPCL({ formData, onChange }) {
   const [mostrarCalculo, setMostrarCalculo] = useState(false);
   const [expandedDomain, setExpandedDomain] = useState(null);
 
-  // Estado del diálogo
+  // Estado del diálogo — selección
   const [capSel,    setCapSel]    = useState('');
   const [tablaSel,  setTablaSel]  = useState(null);
   const [claseSel,  setClaseSel]  = useState(null);
   const [valorDial, setValorDial] = useState('');
+
+  // Estado del diálogo — CFM
+  const [moduladoresPorCap, setModuladoresPorCap] = useState({});   // caché por capítulo
+  const [cfpBase,  setCfpBase]  = useState(null);                   // valor referencia de la clase
+  const [cfmSels,  setCfmSels]  = useState({ cfm1: null, cfm2: null, cfm3: null });
+  const [loadingMod, setLoadingMod] = useState(false);
 
   // Accesores al formData — useMemo para evitar objetos nuevos en cada render
   const deficiencias = useMemo(() => formData.detalleDeficiencias || [], [formData.detalleDeficiencias]);
@@ -174,12 +180,53 @@ export default function CalculadorPCL({ formData, onChange }) {
     })();
   }, []);
 
+  // ── Cargar moduladores CFM cuando cambia el capítulo ─────────────────────
+  useEffect(() => {
+    if (!capSel) return;
+    if (moduladoresPorCap[capSel]) return;  // ya está en caché
+    (async () => {
+      setLoadingMod(true);
+      try {
+        const mods = await obtenerModuladores(capSel);
+        setModuladoresPorCap(prev => ({ ...prev, [capSel]: mods }));
+      } catch { /* sin conectividad */ }
+      finally { setLoadingMod(false); }
+    })();
+  }, [capSel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Recalcular valorDial cuando cambian los CFM ───────────────────────────
+  useEffect(() => {
+    if (cfpBase === null || !claseSel || !tablaSel) return;
+    const cl = tablaSel.clases.find(c => c.id === claseSel);
+    if (!cl) return;
+    const cfmTotal = Object.values(cfmSels).reduce((s, v) => s + (v ?? 0), 0);
+    const computed = Math.min(cl.max, Math.max(cl.min, cfpBase + cfmTotal));
+    setValorDial(String(computed));
+  }, [cfmSels, cfpBase]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Agregar deficiencia desde el diálogo ─────────────────────────────────
   const handleAgregarDeficiencia = () => {
     if (!tablaSel || !claseSel || valorDial === '') return;
     const clase = tablaSel.clases.find(c => c.id === claseSel);
     const valor = parseFloat(valorDial);
     if (isNaN(valor) || valor < clase.min || valor > clase.max) return;
+
+    const mods = moduladoresPorCap[capSel] || [];
+    const cfmTotal = Object.values(cfmSels).reduce((s, v) => s + (v ?? 0), 0);
+
+    // Construir el detalle de cada CFM seleccionado
+    const cfmDetalle = {};
+    ['cfm1', 'cfm2', 'cfm3'].forEach(key => {
+      const modDef = mods.find(m => m.id === key);
+      if (!modDef) return;
+      const val = cfmSels[key] ?? 0;
+      const opcion = modDef.opciones.find(o => o.valor === val);
+      cfmDetalle[key] = {
+        nombre:     modDef.nombre,
+        valor:      val,
+        descripcion: opcion?.descripcion ?? '',
+      };
+    });
 
     const nueva = {
       idCatalogo:       tablaSel.id,
@@ -189,10 +236,17 @@ export default function CalculadorPCL({ formData, onChange }) {
       clase:            claseSel,
       claseDescripcion: clase.nombre,
       valorAsignado:    valor,
+      cfmDetalle:       Object.keys(cfmDetalle).length > 0 ? { cfmTotal, ...cfmDetalle } : undefined,
     };
+
     onChange(null, 'detalleDeficiencias', [...deficiencias, nueva]);
     setDialogOpen(false);
-    setCapSel(''); setTablaSel(null); setClaseSel(null); setValorDial('');
+    resetDialog();
+  };
+
+  const resetDialog = () => {
+    setCapSel(''); setTablaSel(null); setClaseSel(null);
+    setValorDial(''); setCfpBase(null); setCfmSels({ cfm1: null, cfm2: null, cfm3: null });
   };
 
   const eliminarDeficiencia = idx => {
@@ -338,34 +392,58 @@ export default function CalculadorPCL({ formData, onChange }) {
             <Table size="small">
               <TableHead>
                 <TableRow sx={{ bgcolor: 'primary.main' }}>
-                  {['Deficiencia', 'Cap.', 'Tabla', 'Clase', 'Valor', ''].map(h => (
+                  {['Deficiencia', 'Cap.', 'Tabla', 'Clase', 'Valor', 'CFM', ''].map(h => (
                     <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold' }}>{h}</TableCell>
                   ))}
                 </TableRow>
               </TableHead>
               <TableBody>
-                {deficiencias.map((def, i) => (
-                  <TableRow key={i} hover>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight="medium">{def.descripcion}</Typography>
-                    </TableCell>
-                    <TableCell><Typography variant="caption">{def.capitulo}</Typography></TableCell>
-                    <TableCell><Chip label={`Tab. ${def.tabla}`} size="small" /></TableCell>
-                    <TableCell>
-                      <Chip label={def.claseDescripcion || def.clase} size="small" variant="outlined" />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="h6" fontWeight="bold" color="primary.main">
-                        {def.valorAsignado}%
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <IconButton size="small" color="error" onClick={() => eliminarDeficiencia(i)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {deficiencias.map((def, i) => {
+                  const cfm = def.cfmDetalle;
+                  const cfmLabel = cfm?.cfmTotal != null
+                    ? (cfm.cfmTotal > 0 ? `+${cfm.cfmTotal}` : String(cfm.cfmTotal))
+                    : '—';
+                  const cfmTooltip = cfm
+                    ? [
+                        cfm.cfm1 && `CFM1 ${cfm.cfm1.nombre}: ${cfm.cfm1.descripcion} (+${cfm.cfm1.valor})`,
+                        cfm.cfm2 && `CFM2 ${cfm.cfm2.nombre}: ${cfm.cfm2.descripcion} (+${cfm.cfm2.valor})`,
+                        cfm.cfm3 && `CFM3 ${cfm.cfm3.nombre}: ${cfm.cfm3.descripcion} (+${cfm.cfm3.valor})`,
+                      ].filter(Boolean).join('\n')
+                    : 'Sin factores moduladores registrados';
+                  return (
+                    <TableRow key={i} hover>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="medium">{def.descripcion}</Typography>
+                      </TableCell>
+                      <TableCell><Typography variant="caption">{def.capitulo}</Typography></TableCell>
+                      <TableCell><Chip label={`Tab. ${def.tabla}`} size="small" /></TableCell>
+                      <TableCell>
+                        <Chip label={def.claseDescripcion || def.clase} size="small" variant="outlined" />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="h6" fontWeight="bold" color="primary.main">
+                          {def.valorAsignado}%
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Tooltip title={<span style={{ whiteSpace: 'pre-line' }}>{cfmTooltip}</span>} arrow>
+                          <Chip
+                            label={cfmLabel}
+                            size="small"
+                            color={cfm?.cfmTotal > 0 ? 'warning' : cfm?.cfmTotal < 0 ? 'success' : 'default'}
+                            variant={cfm ? 'filled' : 'outlined'}
+                            sx={{ cursor: 'help', minWidth: 36 }}
+                          />
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell>
+                        <IconButton size="small" color="error" onClick={() => eliminarDeficiencia(i)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
@@ -603,21 +681,23 @@ export default function CalculadorPCL({ formData, onChange }) {
       </Paper>
 
       {/* ══ DIÁLOGO — AGREGAR DEFICIENCIA ══════════════════════════════════ */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth keepMounted={false} disablePortal>
+      <Dialog open={dialogOpen} onClose={() => { setDialogOpen(false); resetDialog(); }} maxWidth="md" fullWidth keepMounted={false} disablePortal>
         <DialogTitle>
           Agregar deficiencia — Catálogo Manual Único (Dec. 1507/2014)
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
 
-            {/* Capítulo */}
+            {/* ── Paso 1: Capítulo y Tabla ───────────────────────────────── */}
             <Grid item xs={12} md={6}>
               <TextField
                 select fullWidth label="Capítulo del Manual Único"
                 value={capSel}
                 onChange={e => {
-                  setCapSel(e.target.value);
+                  const cap = e.target.value;
+                  setCapSel(cap);
                   setTablaSel(null); setClaseSel(null); setValorDial('');
+                  setCfpBase(null); setCfmSels({ cfm1: null, cfm2: null, cfm3: null });
                 }}
               >
                 {capitulos.length === 0
@@ -630,7 +710,6 @@ export default function CalculadorPCL({ formData, onChange }) {
               </TextField>
             </Grid>
 
-            {/* Tabla */}
             <Grid item xs={12} md={6}>
               <TextField
                 select fullWidth label="Tabla de deficiencia"
@@ -638,7 +717,9 @@ export default function CalculadorPCL({ formData, onChange }) {
                 disabled={!capSel}
                 onChange={e => {
                   const t = (tablasPorCap[capSel] || []).find(x => x.id === e.target.value);
-                  setTablaSel(t); setClaseSel(null); setValorDial('');
+                  setTablaSel(t);
+                  setClaseSel(null); setValorDial('');
+                  setCfpBase(null); setCfmSels({ cfm1: null, cfm2: null, cfm3: null });
                 }}
               >
                 {(tablasPorCap[capSel] || []).map(t => (
@@ -647,26 +728,31 @@ export default function CalculadorPCL({ formData, onChange }) {
               </TextField>
             </Grid>
 
-            {/* Descripción de la tabla */}
             {tablaSel && (
               <Grid item xs={12}>
-                <Alert severity="info">
+                <Alert severity="info" sx={{ py: 0.5 }}>
                   <Typography variant="body2" fontWeight="bold">{tablaSel.nombre}</Typography>
                   <Typography variant="caption">{tablaSel.descripcion}</Typography>
                 </Alert>
               </Grid>
             )}
 
-            {/* Clase */}
+            {/* ── Paso 2: Clase ─────────────────────────────────────────── */}
             {tablaSel && (
               <Grid item xs={12} md={6}>
                 <TextField
-                  select fullWidth label="Clase"
+                  select fullWidth label="Clase de deficiencia (CFP)"
                   value={claseSel || ''}
                   onChange={e => {
-                    setClaseSel(e.target.value);
-                    const cl = tablaSel.clases.find(c => c.id === e.target.value);
-                    if (cl) setValorDial(cl.referencia ?? cl.min);
+                    const clId = e.target.value;
+                    setClaseSel(clId);
+                    const cl = tablaSel.clases.find(c => c.id === clId);
+                    if (cl) {
+                      const base = cl.referencia ?? cl.min;
+                      setCfpBase(base);
+                      // Reiniciar CFMs; el useEffect recalculará el valor
+                      setCfmSels({ cfm1: null, cfm2: null, cfm3: null });
+                    }
                   }}
                 >
                   {tablaSel.clases.map(c => (
@@ -678,33 +764,133 @@ export default function CalculadorPCL({ formData, onChange }) {
               </Grid>
             )}
 
-            {/* Valor */}
+            {/* Rango de la clase seleccionada */}
             {claseSel && (() => {
               const cl = tablaSel.clases.find(c => c.id === claseSel);
-              const v = parseFloat(valorDial);
-              const fuera = valorDial !== '' && (isNaN(v) || v < cl.min || v > cl.max);
               return (
                 <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label={`Valor asignado (${cl.min}% – ${cl.max}%)`}
-                    type="number"
-                    value={valorDial}
-                    onChange={e => setValorDial(e.target.value)}
-                    inputProps={{ min: cl.min, max: cl.max, step: 0.5 }}
-                    error={fuera}
-                    helperText={fuera ? `Debe estar entre ${cl.min}% y ${cl.max}%` : `Rango: ${cl.min}% — ${cl.max}%`}
-                  />
+                  <Box sx={{ p: 1.5, bgcolor: 'primary.50', border: '1px solid', borderColor: 'primary.200', borderRadius: 1 }}>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Rango de la clase
+                    </Typography>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <Typography variant="body2">Mín: <strong>{cl.min}%</strong></Typography>
+                      <Typography variant="body2">Ref: <strong>{cl.referencia ?? cl.min}%</strong></Typography>
+                      <Typography variant="body2">Máx: <strong>{cl.max}%</strong></Typography>
+                    </Stack>
+                    {cl.referencia && (
+                      <Typography variant="caption" color="text.secondary">
+                        El valor de referencia (CFP) es el punto de partida antes de aplicar CFM
+                      </Typography>
+                    )}
+                  </Box>
                 </Grid>
               );
             })()}
+
+            {/* ── Paso 3: Factores Moduladores (CFM) ────────────────────── */}
+            {claseSel && (
+              <>
+                <Grid item xs={12}>
+                  <Divider>
+                    <Chip
+                      label={loadingMod ? 'Cargando factores moduladores…' : 'Factores Moduladores — CFM (Dec. 1507/2014)'}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
+                  </Divider>
+                </Grid>
+
+                {loadingMod && (
+                  <Grid item xs={12} display="flex" justifyContent="center">
+                    <CircularProgress size={24} />
+                  </Grid>
+                )}
+
+                {(moduladoresPorCap[capSel] || []).map(mod => {
+                  const cfmKey = mod.id; // "cfm1" | "cfm2" | "cfm3"
+                  return (
+                    <Grid item xs={12} key={cfmKey}>
+                      <TextField
+                        select fullWidth
+                        label={`${mod.tipo} — ${mod.nombre}`}
+                        value={cfmSels[cfmKey] ?? ''}
+                        helperText={mod.descripcion}
+                        onChange={e => {
+                          const val = e.target.value === '' ? null : Number(e.target.value);
+                          setCfmSels(prev => ({ ...prev, [cfmKey]: val }));
+                        }}
+                      >
+                        <MenuItem value="">
+                          <em>No aplica / Sin información</em>
+                        </MenuItem>
+                        {mod.opciones.map(op => (
+                          <MenuItem key={op.valor} value={op.valor}>
+                            <Box>
+                              <Chip
+                                label={op.valor >= 0 ? `+${op.valor}` : String(op.valor)}
+                                size="small"
+                                color={op.valor > 0 ? 'warning' : op.valor < 0 ? 'success' : 'default'}
+                                sx={{ mr: 1, minWidth: 32 }}
+                              />
+                              {op.descripcion}
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    </Grid>
+                  );
+                })}
+
+                {/* ── Paso 4: Valor final ─────────────────────────────── */}
+                {(() => {
+                  const cl = tablaSel.clases.find(c => c.id === claseSel);
+                  const cfmTotal = Object.values(cfmSels).reduce((s, v) => s + (v ?? 0), 0);
+                  const v = parseFloat(valorDial);
+                  const fuera = valorDial !== '' && (isNaN(v) || v < cl.min || v > cl.max);
+                  return (
+                    <>
+                      {/* Resumen del cálculo CFM */}
+                      {cfmTotal !== 0 && (
+                        <Grid item xs={12}>
+                          <Box sx={{ p: 1.5, bgcolor: 'warning.50', border: '1px solid', borderColor: 'warning.200', borderRadius: 1 }}>
+                            <Typography variant="caption" color="text.secondary">Cálculo CFM</Typography>
+                            <Typography variant="body2">
+                              CFP base: <strong>{cfpBase}%</strong>
+                              {' '}+{' '}ajuste CFM: <strong>{cfmTotal > 0 ? `+${cfmTotal}` : cfmTotal}</strong>
+                              {' '}={' '}
+                              <strong>{Math.min(cl.max, Math.max(cl.min, cfpBase + cfmTotal))}%</strong>
+                              {' '}(dentro del rango {cl.min}–{cl.max}%)
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      )}
+
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label={`Valor asignado final (${cl.min}% – ${cl.max}%)`}
+                          type="number"
+                          value={valorDial}
+                          onChange={e => setValorDial(e.target.value)}
+                          inputProps={{ min: cl.min, max: cl.max, step: 0.5 }}
+                          error={fuera}
+                          helperText={fuera
+                            ? `Debe estar entre ${cl.min}% y ${cl.max}%`
+                            : 'Calculado automáticamente por CFM. Puede ajustarlo si es necesario.'}
+                          sx={{ '& .MuiInputBase-input': { fontWeight: 'bold', fontSize: '1.1rem' } }}
+                        />
+                      </Grid>
+                    </>
+                  );
+                })()}
+              </>
+            )}
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => {
-            setDialogOpen(false);
-            setCapSel(''); setTablaSel(null); setClaseSel(null); setValorDial('');
-          }}>
+          <Button onClick={() => { setDialogOpen(false); resetDialog(); }}>
             Cancelar
           </Button>
           <Button
@@ -713,7 +899,7 @@ export default function CalculadorPCL({ formData, onChange }) {
             onClick={handleAgregarDeficiencia}
             disabled={!tablaSel || !claseSel || valorDial === ''}
           >
-            Agregar
+            Agregar deficiencia
           </Button>
         </DialogActions>
       </Dialog>
