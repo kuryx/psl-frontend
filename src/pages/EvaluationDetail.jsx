@@ -354,6 +354,14 @@ export default function EvaluationDetail() {
                 )}
               </Seccion>
 
+              {ev.hallazgosExamenFisico && (
+                <Seccion titulo="Hallazgos en Examen Físico">
+                  <Grid item xs={12}>
+                    <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>{ev.hallazgosExamenFisico}</Typography>
+                  </Grid>
+                </Seccion>
+              )}
+
               {ev.historialClinico && (
                 <Seccion titulo="Historial Clínico">
                   <Grid item xs={12}>
