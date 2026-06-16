@@ -1,29 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  Container,
-  Paper,
-  Typography,
-  TextField,
-  Button,
-  Box,
-  Tabs,
-  Tab,
-  Grid,
-  MenuItem,
-  Autocomplete,
-  Chip,
-  Alert,
-  Divider,
-  CircularProgress,
-  IconButton,
-  Switch,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  Tooltip,
+  Container, Paper, Typography, TextField, Button, Box, Tabs, Tab,
+  Grid, MenuItem, Autocomplete, Chip, Alert, Divider, CircularProgress,
+  IconButton, Switch, List, ListItem, ListItemText, ListItemSecondaryAction,
+  Tooltip, Dialog, DialogTitle, DialogContent, DialogActions,
 } from "@mui/material";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SaveIcon from "@mui/icons-material/Save";
 import AddIcon from "@mui/icons-material/Add";
@@ -45,6 +28,7 @@ import api from "../services/api";
 import CalculadorPCL from "../components/CalculadorPCL";
 import { buscarCIUO } from "../services/Ciuoservice";
 import { getCurrentUser } from "../utils/auth";
+import { calcularSugerenciasConsistencia } from "../utils/calculoPCL";
 
 const limpiarHTML = (texto) => {
   if (!texto) return "";
@@ -107,6 +91,9 @@ export default function EditEvaluation() {
   const [, setBusquedaCIUO] = useState("");
   const [resultadosCIUO, setResultadosCIUO] = useState([]);
   const [loadingCIUO, setLoadingCIUO] = useState(false);
+
+  // Validación de consistencia CIF
+  const [consistDialog, setConsistDialog] = useState({ open: false, sugerencias: [] });
 
   // Estado del formulario
   const [formData, setFormData] = useState({
@@ -537,7 +524,7 @@ export default function EditEvaluation() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (omitirConsistencia = false) => {
     setError("");
     setSaving(true);
 
@@ -566,6 +553,19 @@ export default function EditEvaluation() {
         return fail("El porcentaje de PCL debe estar entre 0 y 100", 6);
       if (Number(formData.porcentajePCL) > 0 && !formData.fechaEstructuracion)
         return fail("La fecha de estructuración es obligatoria cuando la PCL es mayor a 0", 6);
+
+      // Advertencia de consistencia CIF (no bloqueante)
+      if (!omitirConsistencia) {
+        const sugerencias = calcularSugerenciasConsistencia(
+          formData.detalleDeficiencias,
+          formData.avdsDetalle
+        );
+        if (sugerencias.length > 0) {
+          setConsistDialog({ open: true, sugerencias });
+          setSaving(false);
+          return;
+        }
+      }
 
       const datosLimpios = {
         ...formData,
@@ -2228,6 +2228,50 @@ export default function EditEvaluation() {
           )}
         </Box>
       </Paper>
+
+      {/* Dialog de advertencia — motor de consistencia CIF */}
+      <Dialog open={consistDialog.open} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <WarningAmberIcon color="warning" />
+          Dominios CIF sin puntuar
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Las siguientes deficiencias registradas sugieren que estos dominios de actividades
+            de vida diaria (AVD) deberían tener puntaje, pero aparecen en cero. Puede guardar
+            de todas formas o volver al calculador para revisarlos.
+          </Typography>
+          {consistDialog.sugerencias.map(({ domId, nombre, causas, urgencia }) => (
+            <Box key={domId} sx={{ mb: 1.5, p: 1.5, borderRadius: 1, bgcolor: urgencia === "alta" ? "error.50" : "warning.50", border: 1, borderColor: urgencia === "alta" ? "error.light" : "warning.light" }}>
+              <Typography variant="body2" fontWeight="bold">
+                {nombre}
+                <Typography component="span" variant="caption" sx={{ ml: 1, px: 0.8, py: 0.2, borderRadius: 0.5, bgcolor: urgencia === "alta" ? "error.main" : "warning.main", color: "white" }}>
+                  {urgencia === "alta" ? "ALTA" : "MEDIA"}
+                </Typography>
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Relacionado con: {(causas || []).join("; ") || "—"}
+              </Typography>
+            </Box>
+          ))}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConsistDialog({ open: false, sugerencias: [] })}>
+            Volver y revisar
+          </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            startIcon={<SaveIcon />}
+            onClick={() => {
+              setConsistDialog({ open: false, sugerencias: [] });
+              handleSubmit(true);
+            }}
+          >
+            Guardar de todas formas
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }
