@@ -471,10 +471,100 @@ export const generarPDFDictamen = async (evaluacion) => {
   }
 
   // ────────────────────────────────────────────────────────────────
-  // SECCIÓN 5 — INFORMACIÓN CLÍNICA Y CONCEPTOS
+  // SECCIÓN 5 — RELACIÓN DE DOCUMENTOS Y EXAMEN FÍSICO
   // ────────────────────────────────────────────────────────────────
   if (y > 252) y = nuevaPag(doc, logo, numDict);
-  y = secTitle(doc, "5. INFORMACIÓN CLÍNICA Y CONCEPTOS", y);
+  y = secTitle(doc, "5. RELACIÓN DE DOCUMENTOS", y);
+
+  {
+    const docsAdj = (evaluacion.documentos || []);
+    const fmtTamano = (bytes) => {
+      if (!bytes) return "";
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1048576) return `${(bytes / 1024).toFixed(0)} KB`;
+      return `${(bytes / 1048576).toFixed(1)} MB`;
+    };
+    const fmtTipo = (tipo) => {
+      if (!tipo) return "—";
+      if (tipo.includes("pdf")) return "PDF";
+      if (tipo.includes("image")) return tipo.replace("image/", "").toUpperCase();
+      if (tipo.includes("word") || tipo.includes("document")) return "Word";
+      if (tipo.includes("excel") || tipo.includes("spreadsheet")) return "Excel";
+      return tipo.split("/").pop().toUpperCase();
+    };
+    if (docsAdj.length === 0) {
+      doc.setFontSize(8.5);
+      doc.setFont(getPdfFont(), "italic");
+      doc.setTextColor(...C.gray);
+      doc.text("No se adjuntaron documentos de historia clínica a esta evaluación.", MARGIN_L, y);
+      doc.setTextColor(...C.dark);
+      doc.setFont(getPdfFont(), "normal");
+      y += 8;
+    } else {
+      const docRows = docsAdj.map((d, i) => [
+        String(i + 1),
+        d.nombre || "Sin nombre",
+        fmtTipo(d.tipo),
+        fmtTamano(d.tamano),
+        d.fechaSubida ? fmtFecha(d.fechaSubida) : "N/A",
+      ]);
+      autoTable(doc, {
+        ...tblOpts({ theme: "striped", cellPadding: 2 }),
+        startY: y,
+        head: [["N°", "Nombre del documento", "Tipo", "Tamaño", "Fecha de carga"]],
+        body: docRows,
+        headStyles: { fillColor: C.primary, textColor: C.white, fontStyle: "bold", fontSize: 8 },
+        styles: { fontSize: 8 },
+        columnStyles: {
+          0: { cellWidth: 10, halign: "center" },
+          1: { cellWidth: 90 },
+          2: { cellWidth: 20, halign: "center" },
+          3: { cellWidth: 22, halign: "right" },
+          4: { cellWidth: 30, halign: "center" },
+        },
+      });
+      y = doc.lastAutoTable.finalY + 7;
+    }
+  }
+
+  // Subtítulo: Hallazgos en examen físico
+  if (y > 255) y = nuevaPag(doc, logo, numDict);
+  y = subHeader(doc, "HALLAZGOS EN EXAMEN FÍSICO", y, { fillColor: [210, 220, 235] });
+
+  {
+    const hallazgos = stripHtml(evaluacion.hallazgosExamenFisico || "").trim();
+    const boxH = 28;
+    doc.setDrawColor(180, 190, 200);
+    doc.setLineWidth(0.3);
+    doc.setFillColor(250, 251, 253);
+    doc.rect(MARGIN_L, y, CW, boxH, "FD");
+    if (hallazgos) {
+      doc.setFontSize(8.5);
+      doc.setFont(getPdfFont(), "normal");
+      doc.setTextColor(...C.dark);
+      const lines = doc.splitTextToSize(hallazgos, CW - 6);
+      let ty = y + 5;
+      for (const ln of lines) {
+        if (ty > y + boxH - 4) break;
+        doc.text(ln, MARGIN_L + 3, ty);
+        ty += 4.5;
+      }
+    } else {
+      doc.setFontSize(8);
+      doc.setFont(getPdfFont(), "italic");
+      doc.setTextColor(...C.gray);
+      doc.text("(Sin hallazgos registrados)", MARGIN_L + 3, y + 7);
+    }
+    doc.setTextColor(...C.dark);
+    doc.setFont(getPdfFont(), "normal");
+    y += boxH + 6;
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // SECCIÓN 6 — INFORMACIÓN CLÍNICA Y CONCEPTOS
+  // ────────────────────────────────────────────────────────────────
+  if (y > 252) y = nuevaPag(doc, logo, numDict);
+  y = secTitle(doc, "6. INFORMACIÓN CLÍNICA Y CONCEPTOS", y);
 
   // 5.1 Resumen del caso
   doc.setFontSize(8.5);
@@ -866,7 +956,7 @@ export const generarPDFDictamen = async (evaluacion) => {
 
   // 6. Diagnósticos
   if (y > 252) y = nuevaPag(doc, logo, numDict);
-  y = secTitle(doc, "6. DIAGNÓSTICOS CIE-11", y);
+  y = secTitle(doc, "7. DIAGNÓSTICOS CIE-11", y);
 
   const diagRows = [];
   if (evaluacion.diagnosticoPrincipal) {
@@ -898,10 +988,10 @@ export const generarPDFDictamen = async (evaluacion) => {
   // SECCIÓN 7 — CALIFICACIÓN PCL (TÍTULOS I Y II)
   // ────────────────────────────────────────────────────────────────
   if (y > 252) y = nuevaPag(doc, logo, numDict);
-  y = secTitle(doc, "7. CALIFICACIÓN DE PÉRDIDA DE CAPACIDAD LABORAL — Decreto 1507/2014", y);
+  y = secTitle(doc, "8. CALIFICACIÓN DE PÉRDIDA DE CAPACIDAD LABORAL — Decreto 1507/2014", y);
 
   // 7.1 Título I — Deficiencia
-  y = subHeader(doc, "7.1  Título I — Calificación / Valoración de las deficiencias  (máx. 50%)", y, { fillColor: [210, 220, 235] });
+  y = subHeader(doc, "8.1  Título I — Calificación / Valoración de las deficiencias  (máx. 50%)", y, { fillColor: [210, 220, 235] });
 
   // ── 7.1.a  Diagnósticos y origen ─────────────────────────────────
   {
@@ -1191,7 +1281,7 @@ export const generarPDFDictamen = async (evaluacion) => {
 
   // 7.2 Título II
   if (y > 252) y = nuevaPag(doc, logo, numDict);
-  y = subHeader(doc, "7.2  Título II — Valoración del rol laboral, rol ocupacional y otras áreas ocupacionales  (máx. 50%)", y, { fillColor: [210, 220, 235] });
+  y = subHeader(doc, "8.2  Título II — Valoración del rol laboral, rol ocupacional y otras áreas ocupacionales  (máx. 50%)", y, { fillColor: [210, 220, 235] });
   y = subHeader(doc, "Rol laboral", y, { fillColor: [220, 228, 240], centered: true });
 
   const totalRL = (rl.totalRolLaboral !== undefined)
@@ -1374,7 +1464,7 @@ export const generarPDFDictamen = async (evaluacion) => {
 
   // 7.3 Concepto final del dictamen — la tabla interna se parte sola; solo necesitamos header + 1 fila (~30mm)
   if (y > 255) y = nuevaPag(doc, logo, numDict);
-  y = secTitle(doc, "7.3  CONCEPTO FINAL DEL DICTAMEN", y);
+  y = secTitle(doc, "8.3  CONCEPTO FINAL DEL DICTAMEN", y);
   y = subHeader(doc, "Resumen de la calificación PCL", y, { fillColor: [210, 220, 235] });
 
   autoTable(doc, {
@@ -1456,7 +1546,7 @@ export const generarPDFDictamen = async (evaluacion) => {
 
   // 9. Observaciones y Recomendaciones
   if (y > 258) y = nuevaPag(doc, logo, numDict);
-  y = secTitle(doc, "8. OBSERVACIONES Y RECOMENDACIONES", y);
+  y = secTitle(doc, "9. OBSERVACIONES Y RECOMENDACIONES", y);
 
   doc.setFontSize(8.5);
   doc.setFont(getPdfFont(), "bold");
@@ -1498,7 +1588,7 @@ export const generarPDFDictamen = async (evaluacion) => {
 
   // 10. Firmas — necesita ~90mm; umbral conservador para evitar overflow sobre el footer
   if (y > 185) y = nuevaPag(doc, logo, numDict);
-  y = secTitle(doc, "9. FIRMA Y VALIDACIÓN DEL DICTAMEN", y);
+  y = secTitle(doc, "10. FIRMA Y VALIDACIÓN DEL DICTAMEN", y);
 
   // Datos del médico: usa perfil actual del usuario logueado como fuente primaria
   const mc = evaluacion.medicoCalificador || {};
@@ -1570,7 +1660,7 @@ export const generarPDFDictamen = async (evaluacion) => {
 
   // ── GRUPO CALIFICADOR ────────────────────────────────────────────
   if (y > 252) y = nuevaPag(doc, logo, numDict);
-  y = secTitle(doc, "10. GRUPO CALIFICADOR", y);
+  y = secTitle(doc, "11. GRUPO CALIFICADOR", y);
 
   const grupoRows = [];
   grupoRows.push([

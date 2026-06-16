@@ -168,6 +168,7 @@ export default function EditEvaluation() {
     },
     historialClinico: "",
     resumenCaso: "",
+    hallazgosExamenFisico: "",
     calificacionPrimeraOportunidad: "",
     procesoRehabilitacion: "No aplica",
     descripcionRehabilitacion: "",
@@ -303,6 +304,7 @@ export default function EditEvaluation() {
         },
         historialClinico: data.historialClinico || "",
         resumenCaso: data.resumenCaso || "",
+        hallazgosExamenFisico: data.hallazgosExamenFisico || "",
         calificacionPrimeraOportunidad: data.calificacionPrimeraOportunidad || "",
         procesoRehabilitacion: data.procesoRehabilitacion || "No aplica",
         descripcionRehabilitacion: data.descripcionRehabilitacion || "",
@@ -1475,6 +1477,19 @@ export default function EditEvaluation() {
                   value={formData.resumenCaso}
                   onChange={(e) => handleChange(null, "resumenCaso", e.target.value)}
                   placeholder="Resumen general del caso clínico..."
+                />
+              </Grid>
+
+              {/* Hallazgos en examen físico */}
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Hallazgos en Examen Físico"
+                  multiline
+                  rows={4}
+                  value={formData.hallazgosExamenFisico}
+                  onChange={(e) => handleChange(null, "hallazgosExamenFisico", e.target.value)}
+                  placeholder="Describa los hallazgos del examen físico del paciente..."
                 />
               </Grid>
 
