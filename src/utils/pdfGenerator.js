@@ -1018,8 +1018,23 @@ export const generarPDFDictamen = async (evaluacion) => {
             d.clase || "—",
             `${d.valorAsignado ?? 0}%`,
           ]);
-          // Fila de detalle CFM cuando hay ajuste
-          if (cfm && (cfm.cfmTotal ?? 0) !== 0) {
+          // Fila de detalle audiometrico (cap. 13) o CFM
+          if (cfm?.audiometria) {
+            const a = cfm.audiometria;
+            const partes = [];
+            if (a.od) partes.push(`OD: 500=${a.od.hz500} 1k=${a.od.hz1000} 2k=${a.od.hz2000} 3k=${a.od.hz3000} Hz  Suma=${a.od.suma}dB -> Monoaural=${a.od.monoaural}%`);
+            if (a.oi) partes.push(`OI: 500=${a.oi.hz500} 1k=${a.oi.hz1000} 2k=${a.oi.hz2000} 3k=${a.oi.hz3000} Hz  Suma=${a.oi.suma}dB -> Monoaural=${a.oi.monoaural}%`);
+            if (a.binaural != null) partes.push(`Binaural (Tab.9.3) = ${a.binaural}%`);
+            rows.push([{
+              content: partes.join('  |  '),
+              colSpan: 10,
+              styles: {
+                fontSize: 6.5, fontStyle: 'italic',
+                fillColor: [220, 240, 255], textColor: [0, 50, 100],
+                cellPadding: { top: 1, bottom: 1.5, left: 6, right: 2 },
+              },
+            }]);
+          } else if (cfm && (cfm.cfmTotal ?? 0) !== 0) {
             const parts = [`CFP base: ${cfpBase}%`];
             ['cfm1', 'cfm2', 'cfm3'].forEach(k => {
               if (cfm[k]?.nombre) {

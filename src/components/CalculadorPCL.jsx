@@ -234,6 +234,10 @@ export default function CalculadorPCL({ formData, onChange }) {
   const [loadingMod, setLoadingMod] = useState(false);
   const [editIdx, setEditIdx]   = useState(null); // null=nuevo, number=editando fila existente
 
+  // Estado del diálogo — Audiometría (cap. 13)
+  const [audOD, setAudOD] = useState({ hz500: '', hz1000: '', hz2000: '', hz3000: '' });
+  const [audOI, setAudOI] = useState({ hz500: '', hz1000: '', hz2000: '', hz3000: '' });
+
   // Accesores al formData — useMemo para evitar objetos nuevos en cada render
   const deficiencias = useMemo(() => formData.detalleDeficiencias || [], [formData.detalleDeficiencias]);
   const rolLaboral   = useMemo(() => formData.valoracionRolLaboral || {
@@ -244,6 +248,38 @@ export default function CalculadorPCL({ formData, onChange }) {
     restriccionesEdad: 0,
   }, [formData.valoracionRolLaboral]);
   const avds         = useMemo(() => formData.avdsDetalle || initAvds(), [formData.avdsDetalle]);
+
+  // Calcular valores audiométricos en tiempo real (cap. 13)
+  const calcAudiometria = useMemo(() => {
+    if (String(capSel) !== '13') return null;
+    const p = v => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+    const od = [p(audOD.hz500), p(audOD.hz1000), p(audOD.hz2000), p(audOD.hz3000)];
+    const oi = [p(audOI.hz500), p(audOI.hz1000), p(audOI.hz2000), p(audOI.hz3000)];
+    const allOD = od.every(v => v !== null);
+    const allOI = oi.every(v => v !== null);
+    if (!allOD && !allOI) return null;
+    const r1 = v => Math.round(v * 10) / 10;
+    const monoF = suma => Math.min(100, Math.max(0, r1((suma - 100) / 4 * 1.5)));
+    const sumaOD = allOD ? od.reduce((s, v) => s + v, 0) : null;
+    const sumaOI = allOI ? oi.reduce((s, v) => s + v, 0) : null;
+    const monoOD = sumaOD !== null ? monoF(sumaOD) : null;
+    const monoOI = sumaOI !== null ? monoF(sumaOI) : null;
+    let binaural = null;
+    if (monoOD !== null && monoOI !== null) {
+      const mejor = Math.min(monoOD, monoOI);
+      const peor  = Math.max(monoOD, monoOI);
+      binaural = r1((5 * mejor + peor) / 6);
+    } else if (monoOD !== null) {
+      binaural = r1(monoOD / 6);
+    } else if (monoOI !== null) {
+      binaural = r1(monoOI / 6);
+    }
+    return {
+      od: allOD ? { hz500: od[0], hz1000: od[1], hz2000: od[2], hz3000: od[3], suma: sumaOD, monoaural: monoOD } : null,
+      oi: allOI ? { hz500: oi[0], hz1000: oi[1], hz2000: oi[2], hz3000: oi[3], suma: sumaOI, monoaural: monoOI } : null,
+      binaural,
+    };
+  }, [capSel, audOD, audOI]);
 
   // Ref siempre actualizado — evita closures obsoletos en useEffects
   const rolLaboralRef = useRef(rolLaboral);
@@ -344,8 +380,29 @@ export default function CalculadorPCL({ formData, onChange }) {
     onChange(null, 'valoracionRolLaboral', { ...rolLaboralRef.current, restriccionesEdad: ptos });
   }, [formData.fechaNacimiento, onChange]);
 
+  // ── Cap 13: auto-seleccionar tabla 9.3 y actualizar clase según audiometría ─
+  useEffect(() => {
+    if (String(capSel) !== '13') return;
+    const tablas = tablasPorCap['13'] || [];
+    const tab = tablas.find(t => t.id === 'cap13_tab13.3');
+    if (!tab) return;
+    if (!tablaSel) setTablaSel(tab);
+    if (calcAudiometria?.binaural != null) {
+      const val = calcAudiometria.binaural;
+      const claseAuto = val === 0
+        ? tab.clases.find(c => c.id === '0')
+        : [...tab.clases].reverse().find(c => c.id !== '0' && val >= c.min);
+      if (claseAuto) {
+        setClaseSel(claseAuto.id);
+        setCfpBase(val);
+        setValorDial(String(val));
+      }
+    }
+  }, [capSel, tablasPorCap, calcAudiometria]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Recalcular valorDial cuando cambian los CFM ───────────────────────────
   useEffect(() => {
+    if (String(capSel) === '13') return; // cap 13 usa cálculo audiométrico
     if (cfpBase === null || !claseSel || !tablaSel) return;
     const cl = tablaSel.clases.find(c => c.id === claseSel);
     if (!cl) return;
@@ -361,22 +418,35 @@ export default function CalculadorPCL({ formData, onChange }) {
     const valor = parseFloat(valorDial);
     if (isNaN(valor) || valor < clase.min || valor > clase.max) return;
 
-    const mods = moduladoresPorCap[capSel] || [];
-    const cfmTotal = Object.values(cfmSels).reduce((s, v) => s + (v ?? 0), 0);
+    let detalle = undefined;
 
-    // Construir el detalle de cada CFM seleccionado
-    const cfmDetalle = {};
-    ['cfm1', 'cfm2', 'cfm3'].forEach(key => {
-      const modDef = mods.find(m => m.id === key);
-      if (!modDef) return;
-      const val = cfmSels[key] ?? 0;
-      const opcion = modDef.opciones.find(o => o.valor === val);
-      cfmDetalle[key] = {
-        nombre:     modDef.nombre,
-        valor:      val,
-        descripcion: opcion?.descripcion ?? '',
+    if (String(capSel) === '13' && calcAudiometria?.binaural != null) {
+      // Cap. 13 — guardar datos audiométricos en lugar de CFMs
+      detalle = {
+        cfmTotal: 0,
+        audiometria: {
+          od: calcAudiometria.od,
+          oi: calcAudiometria.oi,
+          binaural: calcAudiometria.binaural,
+        },
       };
-    });
+    } else {
+      const mods = moduladoresPorCap[capSel] || [];
+      const cfmTotal = Object.values(cfmSels).reduce((s, v) => s + (v ?? 0), 0);
+      const cfmDetalle = {};
+      ['cfm1', 'cfm2', 'cfm3'].forEach(key => {
+        const modDef = mods.find(m => m.id === key);
+        if (!modDef) return;
+        const val = cfmSels[key] ?? 0;
+        const opcion = modDef.opciones.find(o => o.valor === val);
+        cfmDetalle[key] = {
+          nombre:      modDef.nombre,
+          valor:       val,
+          descripcion: opcion?.descripcion ?? '',
+        };
+      });
+      if (Object.keys(cfmDetalle).length > 0) detalle = { cfmTotal, ...cfmDetalle };
+    }
 
     const nueva = {
       idCatalogo:       tablaSel.id,
@@ -386,7 +456,7 @@ export default function CalculadorPCL({ formData, onChange }) {
       clase:            claseSel,
       claseDescripcion: clase.nombre,
       valorAsignado:    valor,
-      cfmDetalle:       Object.keys(cfmDetalle).length > 0 ? { cfmTotal, ...cfmDetalle } : undefined,
+      cfmDetalle:       detalle,
     };
 
     if (editIdx !== null) {
@@ -401,6 +471,8 @@ export default function CalculadorPCL({ formData, onChange }) {
   const resetDialog = () => {
     setCapSel(''); setTablaSel(null); setClaseSel(null);
     setValorDial(''); setCfpBase(null); setCfmSels({ cfm1: null, cfm2: null, cfm3: null });
+    setAudOD({ hz500: '', hz1000: '', hz2000: '', hz3000: '' });
+    setAudOI({ hz500: '', hz1000: '', hz2000: '', hz3000: '' });
     setEditIdx(null);
   };
 
@@ -410,6 +482,13 @@ export default function CalculadorPCL({ formData, onChange }) {
     const tabla = (tablasPorCap[cap] || []).find(t => t.id === d.idCatalogo);
     if (!tabla) return;
     const cfm = d.cfmDetalle;
+    // Restaurar datos audiométricos si existen (cap. 13)
+    if (String(cap) === '13' && cfm?.audiometria) {
+      const a = cfm.audiometria;
+      const toStr = v => (v != null ? String(v) : '');
+      if (a.od) setAudOD({ hz500: toStr(a.od.hz500), hz1000: toStr(a.od.hz1000), hz2000: toStr(a.od.hz2000), hz3000: toStr(a.od.hz3000) });
+      if (a.oi) setAudOI({ hz500: toStr(a.oi.hz500), hz1000: toStr(a.oi.hz1000), hz2000: toStr(a.oi.hz2000), hz3000: toStr(a.oi.hz3000) });
+    }
     setCapSel(cap);
     setTablaSel(tabla);
     setClaseSel(d.clase);
@@ -1124,7 +1203,7 @@ export default function CalculadorPCL({ formData, onChange }) {
               </TextField>
             </Grid>
 
-            {tablaSel && (
+            {tablaSel && String(capSel) !== '13' && (
               <Grid item xs={12}>
                 <Alert severity="info" sx={{ py: 0.5 }}>
                   <Typography variant="body2" fontWeight="bold">{tablaSel.nombre}</Typography>
@@ -1133,8 +1212,92 @@ export default function CalculadorPCL({ formData, onChange }) {
               </Grid>
             )}
 
+            {/* ── Calculadora audiométrica — cap. 13 ────────────────────── */}
+            {String(capSel) === '13' && (
+              <Grid item xs={12}>
+                <Box sx={{ p: 2, border: '1px solid', borderColor: 'info.300', borderRadius: 1, bgcolor: 'info.50' }}>
+                  <Typography variant="subtitle2" color="info.dark" gutterBottom>
+                    Calculadora audiométrica — Tablas 9.1 / 9.2 / 9.3 (Dec. 1507/2014)
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5 }}>
+                    Ingrese los umbrales audiométricos (dB HL) obtenidos de la mejor audiometría (reposo auditivo ≥12h).
+                    Formula monoaural: (suma − 100) / 4 × 1.5% | Binaural: (5 × mejor + peor) / 6
+                  </Typography>
+                  <Grid container spacing={1.5}>
+                    <Grid item xs={12}>
+                      <Typography variant="caption" fontWeight="bold" color="text.primary">Oído Derecho (OD)</Typography>
+                    </Grid>
+                    {[500, 1000, 2000, 3000].map(hz => (
+                      <Grid item xs={3} key={`od${hz}`}>
+                        <TextField
+                          size="small" fullWidth label={`${hz} Hz (dB)`} type="number"
+                          value={audOD[`hz${hz}`]}
+                          onChange={e => setAudOD(prev => ({ ...prev, [`hz${hz}`]: e.target.value }))}
+                          inputProps={{ min: 0, max: 120, step: 5 }}
+                        />
+                      </Grid>
+                    ))}
+
+                    <Grid item xs={12} sx={{ mt: 0.5 }}>
+                      <Typography variant="caption" fontWeight="bold" color="text.primary">Oído Izquierdo (OI)</Typography>
+                    </Grid>
+                    {[500, 1000, 2000, 3000].map(hz => (
+                      <Grid item xs={3} key={`oi${hz}`}>
+                        <TextField
+                          size="small" fullWidth label={`${hz} Hz (dB)`} type="number"
+                          value={audOI[`hz${hz}`]}
+                          onChange={e => setAudOI(prev => ({ ...prev, [`hz${hz}`]: e.target.value }))}
+                          inputProps={{ min: 0, max: 120, step: 5 }}
+                        />
+                      </Grid>
+                    ))}
+
+                    {calcAudiometria && (
+                      <Grid item xs={12}>
+                        <Box sx={{ mt: 0.5, p: 1.5, bgcolor: 'white', border: '1px solid', borderColor: 'info.200', borderRadius: 1 }}>
+                          <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                            Resultados — Tablas 9.1 → 9.2 → 9.3
+                          </Typography>
+                          <Grid container spacing={1} alignItems="center">
+                            {calcAudiometria.od && (
+                              <Grid item xs={12} sm={4}>
+                                <Typography variant="caption">
+                                  <strong>Tab. 9.1 OD:</strong> Suma {calcAudiometria.od.suma} dB
+                                  {' → '}<strong style={{ color: '#1565c0' }}>{calcAudiometria.od.monoaural}%</strong>
+                                </Typography>
+                              </Grid>
+                            )}
+                            {calcAudiometria.oi && (
+                              <Grid item xs={12} sm={4}>
+                                <Typography variant="caption">
+                                  <strong>Tab. 9.1 OI:</strong> Suma {calcAudiometria.oi.suma} dB
+                                  {' → '}<strong style={{ color: '#1565c0' }}>{calcAudiometria.oi.monoaural}%</strong>
+                                </Typography>
+                              </Grid>
+                            )}
+                            {calcAudiometria.binaural !== null && (
+                              <Grid item xs={12} sm={4}>
+                                <Typography variant="caption">
+                                  <strong>Tab. 9.2 Binaural:</strong>{' '}
+                                  <strong style={{ color: '#c62828', fontSize: '1rem' }}>{calcAudiometria.binaural}%</strong>
+                                  {' '}
+                                  <Typography component="span" variant="caption" color="text.secondary">
+                                    (= deficiencia global Tab. 9.3)
+                                  </Typography>
+                                </Typography>
+                              </Grid>
+                            )}
+                          </Grid>
+                        </Box>
+                      </Grid>
+                    )}
+                  </Grid>
+                </Box>
+              </Grid>
+            )}
+
             {/* ── Paso 2: Clase ─────────────────────────────────────────── */}
-            {tablaSel && (
+            {tablaSel && String(capSel) !== '13' && (
               <Grid item xs={12} md={6}>
                 <TextField
                   select fullWidth label="Clase de deficiencia (CFP)"
@@ -1160,8 +1323,8 @@ export default function CalculadorPCL({ formData, onChange }) {
               </Grid>
             )}
 
-            {/* Rango de la clase seleccionada */}
-            {claseSel && (() => {
+            {/* Rango de la clase seleccionada — solo para capítulos sin calculadora especial */}
+            {claseSel && String(capSel) !== '13' && (() => {
               const cl = tablaSel.clases.find(c => c.id === claseSel);
               return (
                 <Grid item xs={12} md={6}>
@@ -1184,8 +1347,24 @@ export default function CalculadorPCL({ formData, onChange }) {
               );
             })()}
 
+            {/* ── Valor final cap. 13 — muestra resultado binaural calculado ─ */}
+            {String(capSel) === '13' && calcAudiometria?.binaural != null && (
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Deficiencia auditiva global — Tab. 9.3 (0%–100%)"
+                  type="number"
+                  value={valorDial}
+                  onChange={e => setValorDial(e.target.value)}
+                  inputProps={{ min: 0, max: 100, step: 0.1 }}
+                  helperText="Calculado automáticamente. Puede ajustar si hay justificación clínica."
+                  sx={{ '& .MuiInputBase-input': { fontWeight: 'bold', fontSize: '1.1rem' } }}
+                />
+              </Grid>
+            )}
+
             {/* ── Paso 3: Factores Moduladores (CFM) ────────────────────── */}
-            {claseSel && (
+            {claseSel && String(capSel) !== '13' && (
               <>
                 <Grid item xs={12}>
                   <Divider>
@@ -1293,7 +1472,10 @@ export default function CalculadorPCL({ formData, onChange }) {
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleAgregarDeficiencia}
-            disabled={!tablaSel || !claseSel || valorDial === ''}
+            disabled={
+              !tablaSel || !claseSel || valorDial === '' ||
+              (String(capSel) === '13' && calcAudiometria?.binaural == null)
+            }
           >
             {editIdx !== null ? 'Guardar cambios' : 'Agregar deficiencia'}
           </Button>
