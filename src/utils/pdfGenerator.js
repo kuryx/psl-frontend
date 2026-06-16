@@ -35,6 +35,14 @@ const stripHtml = (t) => {
   return d.body.textContent || "";
 };
 
+// jsPDF solo soporta Latin-1: quita marcas diacriticas (U+0300-U+036F) para evitar caracteres corruptos
+const _RE_DIAC = new RegExp("[̀-ͯ]", "g");
+const _RE_NONL = new RegExp("[^\x00-\xFF]", "g");
+const pdf = (str) => {
+  if (!str) return "";
+  return String(str).normalize("NFD").replace(_RE_DIAC, "").replace(_RE_NONL, "?");
+};
+
 const fmtFecha = (f) => {
   if (!f) return "N/A";
   return new Date(f).toLocaleDateString("es-CO", {
@@ -503,7 +511,7 @@ export const generarPDFDictamen = async (evaluacion) => {
     } else {
       const docRows = docsAdj.map((d, i) => [
         String(i + 1),
-        d.nombre || "Sin nombre",
+        pdf(d.nombre || "Sin nombre"),
         fmtTipo(d.tipo),
         fmtTamano(d.tamano),
         d.fechaSubida ? fmtFecha(d.fechaSubida) : "N/A",
