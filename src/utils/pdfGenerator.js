@@ -1095,7 +1095,7 @@ export const generarPDFDictamen = async (evaluacion) => {
       doc.setFont(getPdfFont(), "normal");
       doc.setTextColor(...C.gray);
       const formulaLines = doc.splitTextToSize(
-        "CFP: Clase factor principal   CFM: Clase factor modulador   |   Fórmula Baltazar: A + (100 − A) × B / 100   |   A: Deficiencia mayor valor. B: Deficiencia menor valor.",
+        "CFP: Clase factor principal   CFM: Clase factor modulador   |   Formula Baltazar: A + (100 - A) x B / 100   |   A: Deficiencia mayor valor. B: Deficiencia menor valor.",
         CW
       );
       for (const ln of formulaLines) { if (y > 271) y = nuevaPag(doc, logo, numDict); doc.text(ln, MARGIN_L, y); y += 4; }
