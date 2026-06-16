@@ -1001,13 +1001,14 @@ export const generarPDFDictamen = async (evaluacion) => {
       for (const [cap, capDefs] of capMap) {
         if (y > 255) y = nuevaPag(doc, logo, numDict);
 
-        const rows = capDefs.map((d) => {
+        const rows = [];
+        for (const d of capDefs) {
           const cfm = d.cfmDetalle;
           const cfm1 = cfm?.cfm1 ? `+${cfm.cfm1.valor}` : "—";
           const cfm2 = cfm?.cfm2 ? `+${cfm.cfm2.valor}` : "—";
           const cfm3 = cfm?.cfm3 ? `+${cfm.cfm3.valor}` : "—";
           const cfpBase = cfm ? (d.valorAsignado - (cfm.cfmTotal ?? 0)) : (d.valorAsignado ?? 0);
-          return [
+          rows.push([
             d.descripcion || d.claseDescripcion || "",
             (d.capitulo || "").replace("Cap. ", ""),
             d.tabla || "—",
@@ -1016,8 +1017,28 @@ export const generarPDFDictamen = async (evaluacion) => {
             `${d.valorAsignado ?? 0}%`,
             d.clase || "—",
             `${d.valorAsignado ?? 0}%`,
-          ];
-        });
+          ]);
+          // Fila de detalle CFM cuando hay ajuste
+          if (cfm && (cfm.cfmTotal ?? 0) !== 0) {
+            const parts = [`CFP base: ${cfpBase}%`];
+            ['cfm1', 'cfm2', 'cfm3'].forEach(k => {
+              if (cfm[k]?.nombre) {
+                const desc = cfm[k].descripcion ? ` (${cfm[k].descripcion})` : '';
+                parts.push(`${cfm[k].nombre}${desc}: +${cfm[k].valor}`);
+              }
+            });
+            parts.push(`= ${d.valorAsignado}%`);
+            rows.push([{
+              content: parts.join('  |  '),
+              colSpan: 10,
+              styles: {
+                fontSize: 6.5, fontStyle: 'italic',
+                fillColor: [245, 250, 220], textColor: [55, 70, 0],
+                cellPadding: { top: 1, bottom: 1.5, left: 6, right: 2 },
+              },
+            }]);
+          }
+        }
 
         // Combinar Baltazar dentro del capítulo
         const { total: capTotal } = combinarBalthazard(capDefs.map((d) => d.valorAsignado ?? 0));
