@@ -157,20 +157,75 @@ const colStyle4 = {
 
 // ─── Nombres completos de capítulos — Decreto 1507/2014 ──────────
 const CAPITULO_NOMBRE = {
-  "1":  "Capítulo 1. Deficiencias por alteraciones funcionales de carácter músculo-esquelético.",
-  "2":  "Capítulo 2. Deficiencias por alteraciones del sistema cardiovascular.",
-  "3":  "Capítulo 3. Deficiencias por trastornos del sistema respiratorio.",
-  "4":  "Capítulo 4. Deficiencias por alteraciones del sistema digestivo.",
-  "5":  "Capítulo 5. Deficiencias por alteraciones del sistema urinario.",
-  "6":  "Capítulo 6. Deficiencias por alteraciones del sistema reproductor.",
-  "7":  "Capítulo 7. Deficiencias por alteraciones del sistema hematopoyético e inmunológico.",
-  "8":  "Capítulo 8. Deficiencias por alteraciones del sistema endocrino.",
-  "9":  "Capítulo 9. Deficiencias relacionadas con la piel.",
-  "10": "Capítulo 10. Deficiencias por dolor crónico.",
-  "11": "Capítulo 11. Deficiencias por alteraciones de los órganos de los sentidos.",
+  "1":  "Capítulo 1. Deficiencias del sistema músculo-esquelético.",
+  "2":  "Capítulo 2. Deficiencias del sistema cardiovascular.",
+  "3":  "Capítulo 3. Deficiencias del sistema respiratorio.",
+  "4":  "Capítulo 4. Deficiencias del sistema digestivo.",
+  "5":  "Capítulo 5. Deficiencias del sistema urinario y renal.",
+  "6":  "Capítulo 6. Deficiencias del sistema nervioso — lesiones estructurales.",
+  "7":  "Capítulo 7. Deficiencias por VIH / SIDA e inmunodeficiencias.",
+  "8":  "Capítulo 8. Deficiencias del sistema endocrino y metabólico.",
+  "9":  "Capítulo 9. Deficiencias del sistema hematológico.",
+  "10": "Capítulo 10. Deficiencias del sistema dermatológico.",
+  "11": "Capítulo 11. Deficiencias del sistema oftalmológico.",
   "12": "Capítulo 12. Deficiencias del sistema nervioso central y periférico.",
-  "13": "Capítulo 13. Deficiencias psiquiátricas.",
-  "14": "Capítulo 14. Deficiencias por neoplasias malignas.",
+  "13": "Capítulo 13. Deficiencias del sistema auditivo.",
+  "14": "Capítulo 14. Deficiencias de salud mental y del comportamiento.",
+};
+
+// ─── Motor de consistencia Título I → AVD ────────────────────────
+const _CONSIST_MAP = {
+  1:  { d4: 1, d5: 1, d6: 2 },
+  2:  { d4: 1, d5: 3, d6: 3 },
+  3:  { d4: 1, d5: 2, d6: 2 },
+  4:  { d5: 2 },
+  5:  { d5: 2 },
+  6:  { d1: 0, d3: 1, d4: 1, d5: 2, d6: 3 },
+  7:  { d4: 2, d5: 2 },
+  8:  { d4: 2, d5: 2 },
+  9:  { d4: 2 },
+  10: { d5: 1 },
+  11: { d1: 0, d3: 1, d4: 1, d5: 3, d6: 3 },
+  12: { d1: 1, d3: 2, d4: 1, d5: 2, d6: 3 },
+  13: { d3: 2 },
+  14: { d1: 1, d3: 1, d5: 2, d6: 3 },
+};
+const _CLASE_A_NIVEL = {
+  '0': -1, 'I': 0, '1': 0, 'II': 1, '2': 1, 'III': 2, '3': 2,
+  'IV': 3, '4': 3, 'V': 3, '5': 3,
+};
+const _AVD_NOMBRES = {
+  d1: 'Aprendizaje y aplicación del conocimiento',
+  d3: 'Comunicación',
+  d4: 'Movilidad',
+  d5: 'Autocuidado personal',
+  d6: 'Vida doméstica',
+};
+
+const _calcularSugerenciasConsistencia = (detalleDeficiencias, avds) => {
+  const pending = {};
+  for (const def of (detalleDeficiencias || [])) {
+    const cap = parseInt((def.capitulo || '').replace('Cap. ', ''));
+    const nivel = _CLASE_A_NIVEL[def.clase] ?? -1;
+    if (nivel < 0 || isNaN(cap)) continue;
+    const mapping = _CONSIST_MAP[cap];
+    if (!mapping) continue;
+    for (const [domId, minNivel] of Object.entries(mapping)) {
+      if (nivel < minNivel) continue;
+      const domObj = AVD_DOMS.find(d => d.id === domId);
+      const totalDom = domObj
+        ? domObj.items.reduce((s, it) => s + (parseFloat((avds[domId] || {})[it.id]) || 0), 0)
+        : 0;
+      if (totalDom > 0) continue;
+      if (!pending[domId]) pending[domId] = { causas: [], urgencia: 'media' };
+      const label = def.descripcion || def.claseDescripcion || '';
+      if (label && !pending[domId].causas.includes(label)) pending[domId].causas.push(label);
+      if (nivel >= 2) pending[domId].urgencia = 'alta';
+    }
+  }
+  return Object.entries(pending).map(([domId, info]) => ({
+    domId, nombre: _AVD_NOMBRES[domId] || domId, ...info,
+  })).sort((a, b) => (b.urgencia === 'alta' ? 1 : 0) - (a.urgencia === 'alta' ? 1 : 0));
 };
 const capNombre = (cap) => {
   const num = (cap || "").replace(/\D/g, "");
@@ -1039,6 +1094,62 @@ export const generarPDFDictamen = async (evaluacion) => {
         columnStyles: { 0: { cellWidth: 148 }, 1: { cellWidth: 34, halign: "center" } },
       });
       y = doc.lastAutoTable.finalY + 7;
+    }
+  }
+
+  // ── Motor de consistencia (entre Título I y Título II) ────────────
+  {
+    const sugerencias = _calcularSugerenciasConsistencia(evaluacion.detalleDeficiencias, avds);
+    if (y > 258) y = nuevaPag(doc, logo, numDict);
+
+    if (sugerencias.length === 0) {
+      doc.setFillColor(39, 174, 96);
+      doc.rect(MARGIN_L, y, CW, 7, "F");
+      doc.setFontSize(8);
+      doc.setFont(getPdfFont(), "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text("✓  Motor de consistencia CIF: todos los dominios valorados coherentemente con las deficiencias registradas.", MARGIN_L + 3, y + 5);
+      doc.setTextColor(...C.dark);
+      y += 11;
+    } else {
+      // Cabecera ámbar
+      doc.setFillColor(230, 155, 0);
+      doc.rect(MARGIN_L, y, CW, 7, "F");
+      doc.setFontSize(8);
+      doc.setFont(getPdfFont(), "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text(
+        `⚠  Motor de consistencia CIF: ${sugerencias.length} dominio${sugerencias.length > 1 ? "s" : ""} sin puntuar — revisar coherencia con deficiencias.`,
+        MARGIN_L + 3, y + 5
+      );
+      doc.setTextColor(...C.dark);
+      y += 9;
+
+      const consistRows = sugerencias.map(({ nombre, causas, urgencia }) => [
+        urgencia === 'alta' ? 'ALTA' : 'MEDIA',
+        nombre,
+        (causas || []).join('; ') || '—',
+      ]);
+
+      autoTable(doc, {
+        ...tblOpts({ theme: "grid", cellPadding: 2 }),
+        startY: y,
+        head: [["Urgencia", "Dominio CIF sin puntuar", "Deficiencias relacionadas"]],
+        body: consistRows,
+        headStyles: { fillColor: [200, 135, 0], textColor: C.white, fontStyle: "bold", fontSize: 7.5 },
+        styles: { fontSize: 7.5 },
+        columnStyles: {
+          0: { cellWidth: 20, halign: "center", fontStyle: "bold" },
+          1: { cellWidth: 62 },
+          2: { cellWidth: 100 },
+        },
+        didParseCell: (data) => {
+          if (data.column.index === 0 && data.section === 'body') {
+            data.cell.styles.textColor = data.cell.raw === 'ALTA' ? [180, 0, 0] : [120, 80, 0];
+          }
+        },
+      });
+      y = doc.lastAutoTable.finalY + 4;
     }
   }
 
