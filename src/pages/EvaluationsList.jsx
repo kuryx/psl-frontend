@@ -4,7 +4,7 @@ import {
   Container, Paper, Typography, Button, Box, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, Chip, IconButton,
   TextField, MenuItem, CircularProgress, Alert, InputAdornment, Pagination,
-  Collapse, Slider,
+  Collapse, Slider, Tooltip, TableSortLabel,
 } from "@mui/material";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import SearchIcon from "@mui/icons-material/Search";
@@ -61,54 +61,75 @@ const ESTADO_LABEL = {
   completada: "Completada", revisada: "Revisada", aprobada: "Aprobada",
 };
 
+const ORIGEN_COLOR = {
+  "Enfermedad común":    { bg: "#e3f2fd", text: "#1565c0" },
+  "Enfermedad laboral":  { bg: "#fff3e0", text: "#e65100" },
+  "Accidente de trabajo":{ bg: "#fce4ec", text: "#880e4f" },
+  "Accidente común":     { bg: "#f3e5f5", text: "#6a1b9a" },
+};
+
 const fmtFecha = (f) =>
   new Date(f).toLocaleDateString("es-ES", { year: "numeric", month: "short", day: "numeric" });
+
+// ─── Orden local sobre los datos de la página actual ─────────────────────────
+const ordenarDatos = (datos, campo, dir) => {
+  if (!campo) return datos;
+  return [...datos].sort((a, b) => {
+    let va, vb;
+    if (campo === "pcl")    { va = a.porcentajePCL ?? 0;          vb = b.porcentajePCL ?? 0; }
+    if (campo === "fecha")  { va = new Date(a.fechaEvaluacion);   vb = new Date(b.fechaEvaluacion); }
+    if (campo === "nombre") { va = a.paciente?.nombreCompleto || ""; vb = b.paciente?.nombreCompleto || ""; }
+    if (va < vb) return dir === "asc" ? -1 : 1;
+    if (va > vb) return dir === "asc" ? 1 : -1;
+    return 0;
+  });
+};
 
 export default function EvaluationsList() {
   const navigate = useNavigate();
   const location = useLocation();
   const busquedaInicial = new URLSearchParams(location.search).get("busqueda") || "";
-  const [evaluaciones, setEvaluaciones] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [filtroEstado, setFiltroEstado] = useState("");
-  const [busqueda, setBusqueda] = useState(busquedaInicial);
-  const [busquedaDebounced, setBusquedaDebounced] = useState(busquedaInicial);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [filtrosAvanzados, setFiltrosAvanzados] = useState(false);
-  const [fechaDesde, setFechaDesde] = useState("");
-  const [fechaHasta, setFechaHasta] = useState("");
-  const [pclRango, setPclRango] = useState([0, 100]);
 
-  // Debounce 400ms
+  const [evaluaciones, setEvaluaciones] = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
+  const [filtroOrigen, setFiltroOrigen] = useState("");
+  const [busqueda, setBusqueda]         = useState(busquedaInicial);
+  const [busquedaDebounced, setBusquedaDebounced] = useState(busquedaInicial);
+  const [page, setPage]                 = useState(1);
+  const [totalPages, setTotalPages]     = useState(1);
+  const [total, setTotal]               = useState(0);
+  const [filtrosAvanzados, setFiltrosAvanzados] = useState(false);
+  const [fechaDesde, setFechaDesde]     = useState("");
+  const [fechaHasta, setFechaHasta]     = useState("");
+  const [pclRango, setPclRango]         = useState([0, 100]);
+  const [ordenCampo, setOrdenCampo]     = useState("fecha");
+  const [ordenDir, setOrdenDir]         = useState("desc");
+
+  // Debounce búsqueda
   useEffect(() => {
-    const t = setTimeout(() => {
-      setBusquedaDebounced(busqueda);
-      setPage(1);
-    }, 400);
+    const t = setTimeout(() => { setBusquedaDebounced(busqueda); setPage(1); }, 400);
     return () => clearTimeout(t);
   }, [busqueda]);
 
   // Reset page cuando cambian filtros
-  useEffect(() => { setPage(1); }, [filtroEstado, fechaDesde, fechaHasta, pclRango]);
+  useEffect(() => { setPage(1); }, [filtroEstado, filtroOrigen, fechaDesde, fechaHasta, pclRango]);
 
-  useEffect(() => {
-    cargar();
-  }, [filtroEstado, busquedaDebounced, page, fechaDesde, fechaHasta, pclRango]);
+  useEffect(() => { cargar(); }, [filtroEstado, filtroOrigen, busquedaDebounced, page, fechaDesde, fechaHasta, pclRango]); // eslint-disable-line
 
   const cargar = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const params = { page, limit: LIMIT };
-      if (filtroEstado) params.estado = filtroEstado;
-      if (busquedaDebounced.trim()) params.busqueda = busquedaDebounced.trim();
-      if (fechaDesde) params.fechaDesde = fechaDesde;
-      if (fechaHasta) params.fechaHasta = fechaHasta;
-      if (pclRango[0] > 0) params.pclMin = pclRango[0];
-      if (pclRango[1] < 100) params.pclMax = pclRango[1];
+      if (filtroEstado)             params.estado    = filtroEstado;
+      if (filtroOrigen)             params.origen    = filtroOrigen;
+      if (busquedaDebounced.trim()) params.busqueda  = busquedaDebounced.trim();
+      if (fechaDesde)               params.fechaDesde = fechaDesde;
+      if (fechaHasta)               params.fechaHasta = fechaHasta;
+      if (pclRango[0] > 0)          params.pclMin    = pclRango[0];
+      if (pclRango[1] < 100)        params.pclMax    = pclRango[1];
       const data = await listarEvaluaciones(params);
       setEvaluaciones(data.evaluaciones);
       setTotal(data.total);
@@ -118,7 +139,7 @@ export default function EvaluationsList() {
     } finally {
       setLoading(false);
     }
-  }, [filtroEstado, busquedaDebounced, page, fechaDesde, fechaHasta, pclRango]);
+  }, [filtroEstado, filtroOrigen, busquedaDebounced, page, fechaDesde, fechaHasta, pclRango]);
 
   const handleEliminar = async (id) => {
     if (!window.confirm("¿Estás seguro de eliminar esta evaluación?")) return;
@@ -134,6 +155,7 @@ export default function EvaluationsList() {
     try {
       const params = {};
       if (filtroEstado) params.estado = filtroEstado;
+      if (filtroOrigen) params.origen = filtroOrigen;
       if (busquedaDebounced.trim()) params.busqueda = busquedaDebounced.trim();
       const evs = await exportarEvaluaciones(params);
 
@@ -166,6 +188,26 @@ export default function EvaluationsList() {
     }
   };
 
+  const handleOrden = (campo) => {
+    if (ordenCampo === campo) {
+      setOrdenDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setOrdenCampo(campo);
+      setOrdenDir("desc");
+    }
+  };
+
+  const limpiarFiltros = () => {
+    setFechaDesde(""); setFechaHasta("");
+    setPclRango([0, 100]); setFiltroEstado("");
+    setFiltroOrigen(""); setBusqueda("");
+  };
+
+  const hayFiltrosActivos = filtroEstado || filtroOrigen || fechaDesde || fechaHasta
+    || pclRango[0] > 0 || pclRango[1] < 100 || busquedaDebounced;
+
+  const evaluacionesOrdenadas = ordenarDatos(evaluaciones, ordenCampo, ordenDir);
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Paper elevation={3} sx={{ p: 4 }}>
@@ -177,6 +219,7 @@ export default function EvaluationsList() {
             {!loading && (
               <Typography variant="caption" color="text.secondary">
                 {total} {total === 1 ? "evaluación encontrada" : "evaluaciones encontradas"}
+                {hayFiltrosActivos && " (filtros activos)"}
               </Typography>
             )}
           </Box>
@@ -232,13 +275,30 @@ export default function EvaluationsList() {
             <MenuItem value="segunda_instancia">Junta Nacional</MenuItem>
             <MenuItem value="aprobado">Ejecutoriado</MenuItem>
           </TextField>
+          <TextField
+            select size="small" label="Origen"
+            value={filtroOrigen}
+            onChange={(e) => setFiltroOrigen(e.target.value)}
+            sx={{ minWidth: 180 }}
+          >
+            <MenuItem value="">Todos los orígenes</MenuItem>
+            <MenuItem value="Enfermedad común">Enfermedad común</MenuItem>
+            <MenuItem value="Enfermedad laboral">Enfermedad laboral</MenuItem>
+            <MenuItem value="Accidente de trabajo">Accidente de trabajo</MenuItem>
+            <MenuItem value="Accidente común">Accidente común</MenuItem>
+          </TextField>
           <Button
             size="small" variant={filtrosAvanzados ? "contained" : "outlined"}
             startIcon={<FilterListIcon />}
             onClick={() => setFiltrosAvanzados(!filtrosAvanzados)}
           >
-            Filtros
+            Más filtros
           </Button>
+          {hayFiltrosActivos && (
+            <Button size="small" color="error" variant="text" onClick={limpiarFiltros}>
+              Limpiar
+            </Button>
+          )}
         </Box>
 
         {/* Filtros avanzados */}
@@ -257,9 +317,9 @@ export default function EvaluationsList() {
               value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)}
               InputLabelProps={{ shrink: true }} sx={{ minWidth: 160 }}
             />
-            <Box sx={{ minWidth: 200 }}>
+            <Box sx={{ minWidth: 220 }}>
               <Typography variant="caption" color="text.secondary" display="block" mb={1}>
-                PCL: {pclRango[0]}% — {pclRango[1]}%
+                Rango PCL: {pclRango[0]}% — {pclRango[1]}%
               </Typography>
               <Slider
                 value={pclRango} onChange={(_, v) => setPclRango(v)}
@@ -268,12 +328,6 @@ export default function EvaluationsList() {
                 size="small"
               />
             </Box>
-            <Button
-              size="small" color="error" variant="text"
-              onClick={() => { setFechaDesde(""); setFechaHasta(""); setPclRango([0, 100]); setFiltroEstado(""); setBusqueda(""); }}
-            >
-              Limpiar todo
-            </Button>
           </Box>
         </Collapse>
 
@@ -288,11 +342,16 @@ export default function EvaluationsList() {
             <Typography variant="h6" color="text.secondary">
               {busquedaDebounced
                 ? `Sin resultados para "${busquedaDebounced}"`
-                : "No hay evaluaciones registradas"}
+                : "No hay evaluaciones con los filtros aplicados"}
             </Typography>
-            {!busquedaDebounced && canCreate() && (
+            {!hayFiltrosActivos && canCreate() && (
               <Button variant="contained" sx={{ mt: 2 }} onClick={() => navigate("/evaluations/new")}>
                 Crear primera evaluación
+              </Button>
+            )}
+            {hayFiltrosActivos && (
+              <Button variant="outlined" sx={{ mt: 2 }} onClick={limpiarFiltros}>
+                Limpiar filtros
               </Button>
             )}
           </Box>
@@ -302,90 +361,149 @@ export default function EvaluationsList() {
               <Table size="small">
                 <TableHead>
                   <TableRow sx={{ "& th": { fontWeight: "bold", bgcolor: "grey.50" } }}>
-                    <TableCell>Paciente</TableCell>
+                    <TableCell sx={{ minWidth: 80 }}>
+                      N° Dictamen
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 160 }}>
+                      <TableSortLabel
+                        active={ordenCampo === "nombre"}
+                        direction={ordenCampo === "nombre" ? ordenDir : "asc"}
+                        onClick={() => handleOrden("nombre")}
+                      >
+                        Paciente
+                      </TableSortLabel>
+                    </TableCell>
                     <TableCell>Cédula</TableCell>
-                    <TableCell>Diagnóstico</TableCell>
-                    <TableCell align="center">PCL %</TableCell>
-                    <TableCell>Fecha</TableCell>
-                    <TableCell>Estado</TableCell>
-                    <TableCell align="center" width={160}>Acciones</TableCell>
+                    <TableCell sx={{ minWidth: 200 }}>Diagnóstico principal</TableCell>
+                    <TableCell align="center" sx={{ minWidth: 70 }}>
+                      <TableSortLabel
+                        active={ordenCampo === "pcl"}
+                        direction={ordenCampo === "pcl" ? ordenDir : "desc"}
+                        onClick={() => handleOrden("pcl")}
+                      >
+                        PCL %
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 140 }}>Origen</TableCell>
+                    <TableCell sx={{ minWidth: 95 }}>
+                      <TableSortLabel
+                        active={ordenCampo === "fecha"}
+                        direction={ordenCampo === "fecha" ? ordenDir : "desc"}
+                        onClick={() => handleOrden("fecha")}
+                      >
+                        Fecha
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 130 }}>Estado</TableCell>
+                    <TableCell align="center" sx={{ minWidth: 140 }}>Acciones</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {evaluaciones.map((ev) => (
-                    <TableRow key={ev._id} hover>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight="medium">
-                          {ev.paciente.nombreCompleto}
-                        </Typography>
-                        {ev.informacionDictamen?.numeroDictamen && (
-                          <Typography variant="caption" color="text.secondary">
-                            {ev.informacionDictamen.numeroDictamen}
+                  {evaluacionesOrdenadas.map((ev) => {
+                    const origenStyle = ORIGEN_COLOR[ev.origen] || { bg: "#f5f5f5", text: "#555" };
+                    return (
+                      <TableRow key={ev._id} hover sx={{ cursor: "pointer" }}
+                        onClick={() => navigate(`/evaluations/${ev._id}`)}>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>
+                            {ev.informacionDictamen?.numeroDictamen || "—"}
                           </Typography>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{ev.paciente.cedula}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {ev.diagnosticoPrincipal.codigo} —{" "}
-                          {limpiarHTML(ev.diagnosticoPrincipal.nombre).substring(0, 38)}
-                          {limpiarHTML(ev.diagnosticoPrincipal.nombre).length > 38 && "…"}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Typography variant="body2" fontWeight="bold" color="primary.main">
-                          {ev.porcentajePCL}%
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{fmtFecha(ev.fechaEvaluacion)}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Box display="flex" alignItems="center" gap={0.8} flexWrap="wrap">
-                          <Chip
-                            label={ESTADO_LABEL[ev.estado] || ev.estado}
-                            color={ESTADO_COLOR[ev.estado] || "default"}
-                            size="small"
-                          />
-                          {(() => {
-                            const sem = calcularSemaforo(ev);
-                            return sem ? (
-                              <Box sx={{
-                                bgcolor: sem.color, color: "white", borderRadius: 1,
-                                px: 0.8, py: 0.2, fontSize: "0.68rem", fontWeight: "bold",
-                              }}>
-                                {sem.label}
-                              </Box>
-                            ) : null;
-                          })()}
-                        </Box>
-                      </TableCell>
-                      <TableCell align="center">
-                        <IconButton size="small" color="primary"
-                          title="Ver detalle" onClick={() => navigate(`/evaluations/${ev._id}`)}>
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                        {canEdit() && (
-                          <IconButton size="small" color="info"
-                            title="Editar" onClick={() => navigate(`/evaluations/${ev._id}/edit`)}>
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        )}
-                        <IconButton size="small" color="secondary"
-                          title="Descargar PDF" onClick={() => generarPDFDictamen(ev)}>
-                          <PictureAsPdfIcon fontSize="small" />
-                        </IconButton>
-                        {canDelete() && (
-                          <IconButton size="small" color="error"
-                            title="Eliminar" onClick={() => handleEliminar(ev._id)}>
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Typography variant="body2" fontWeight="medium">
+                            {ev.paciente.nombreCompleto}
+                          </Typography>
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Typography variant="body2">{ev.paciente.cedula}</Typography>
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Tooltip title={limpiarHTML(ev.diagnosticoPrincipal.nombre)} arrow>
+                            <Typography variant="body2">
+                              <strong>{ev.diagnosticoPrincipal.codigo}</strong>{" "}
+                              {limpiarHTML(ev.diagnosticoPrincipal.nombre).substring(0, 35)}
+                              {limpiarHTML(ev.diagnosticoPrincipal.nombre).length > 35 && "…"}
+                            </Typography>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell align="center" onClick={(e) => e.stopPropagation()}>
+                          <Typography
+                            variant="body2" fontWeight="bold"
+                            color={ev.porcentajePCL >= 50 ? "error.main" : "primary.main"}
+                          >
+                            {ev.porcentajePCL}%
+                          </Typography>
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          {ev.origen ? (
+                            <Box sx={{
+                              display: "inline-block",
+                              bgcolor: origenStyle.bg, color: origenStyle.text,
+                              borderRadius: 1, px: 1, py: 0.3,
+                              fontSize: "0.72rem", fontWeight: 600, whiteSpace: "nowrap",
+                            }}>
+                              {ev.origen}
+                            </Box>
+                          ) : (
+                            <Typography variant="caption" color="text.disabled">—</Typography>
+                          )}
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Typography variant="body2">{fmtFecha(ev.fechaEvaluacion)}</Typography>
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Box display="flex" alignItems="center" gap={0.8} flexWrap="wrap">
+                            <Chip
+                              label={ESTADO_LABEL[ev.estado] || ev.estado}
+                              color={ESTADO_COLOR[ev.estado] || "default"}
+                              size="small"
+                            />
+                            {(() => {
+                              const sem = calcularSemaforo(ev);
+                              return sem ? (
+                                <Box sx={{
+                                  bgcolor: sem.color, color: "white", borderRadius: 1,
+                                  px: 0.8, py: 0.2, fontSize: "0.68rem", fontWeight: "bold",
+                                }}>
+                                  {sem.label}
+                                </Box>
+                              ) : null;
+                            })()}
+                          </Box>
+                        </TableCell>
+                        <TableCell align="center" onClick={(e) => e.stopPropagation()}>
+                          <Tooltip title="Ver detalle">
+                            <IconButton size="small" color="primary"
+                              onClick={() => navigate(`/evaluations/${ev._id}`)}>
+                              <VisibilityIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          {canEdit() && (
+                            <Tooltip title="Editar">
+                              <IconButton size="small" color="info"
+                                onClick={() => navigate(`/evaluations/${ev._id}/edit`)}>
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          <Tooltip title="Descargar PDF">
+                            <IconButton size="small" color="secondary"
+                              onClick={() => generarPDFDictamen(ev)}>
+                              <PictureAsPdfIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          {canDelete() && (
+                            <Tooltip title="Eliminar">
+                              <IconButton size="small" color="error"
+                                onClick={() => handleEliminar(ev._id)}>
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -394,7 +512,7 @@ export default function EvaluationsList() {
             {totalPages > 1 && (
               <Box display="flex" justifyContent="center" alignItems="center" gap={2} mt={3}>
                 <Typography variant="caption" color="text.secondary">
-                  Página {page} de {totalPages}
+                  Página {page} de {totalPages} — {total} resultados
                 </Typography>
                 <Pagination
                   count={totalPages}
