@@ -1949,16 +1949,63 @@ export default function NewEvaluation() {
             />
 
             <Box sx={{ mt: 2 }}>
-              {formData.diagnosticosSecundarios.map((diagnostico) => (
-                <Chip
-                  key={diagnostico.codigo}
-                  label={`${diagnostico.codigo} - ${limpiarHTML(diagnostico.nombre).substring(0, 60)}${limpiarHTML(diagnostico.nombre).length > 60 ? "..." : ""}`}
-                  onDelete={() => eliminarDiagnosticoSecundario(diagnostico.codigo)}
-                  sx={{ m: 0.5 }}
-                  color="primary"
-                  variant="outlined"
-                />
-              ))}
+              {formData.diagnosticosSecundarios.map((diagnostico, idx) => {
+                const nombre = limpiarHTML(diagnostico.nombre);
+                const updateSecundario = (campo, valor) => {
+                  const updated = formData.diagnosticosSecundarios.map((d, i) =>
+                    i === idx ? { ...d, [campo]: valor } : d
+                  );
+                  handleChange(null, "diagnosticosSecundarios", updated);
+                };
+                return (
+                  <Box
+                    key={diagnostico.codigo}
+                    sx={{ mb: 1, p: 1.5, border: "1px solid", borderColor: "divider", borderRadius: 1 }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                      <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }}>
+                        <strong>{diagnostico.codigo}</strong> — {nombre.length > 80 ? nombre.substring(0, 80) + "..." : nombre}
+                      </Typography>
+                      <IconButton size="small" color="error" onClick={() => eliminarDiagnosticoSecundario(diagnostico.codigo)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      <TextField
+                        size="small"
+                        label="Diagnóstico específico"
+                        value={diagnostico.diagnosticoEspecifico || ""}
+                        onChange={(e) => updateSecundario("diagnosticoEspecifico", e.target.value)}
+                        placeholder="Detalles adicionales (opcional)"
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField
+                        size="small"
+                        label="Fecha de Diagnóstico"
+                        type="date"
+                        value={diagnostico.fechaDiagnostico || ""}
+                        onChange={(e) => updateSecundario("fechaDiagnostico", e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                        sx={{ minWidth: 160 }}
+                      />
+                      <TextField
+                        select
+                        size="small"
+                        label="Origen"
+                        value={diagnostico.origen || ""}
+                        onChange={(e) => updateSecundario("origen", e.target.value)}
+                        sx={{ minWidth: 180 }}
+                      >
+                        <MenuItem value="">Sin especificar</MenuItem>
+                        <MenuItem value="Enfermedad común">Enfermedad común</MenuItem>
+                        <MenuItem value="Enfermedad laboral">Enfermedad laboral</MenuItem>
+                        <MenuItem value="Accidente de trabajo">Accidente de trabajo</MenuItem>
+                        <MenuItem value="Accidente común">Accidente común</MenuItem>
+                      </TextField>
+                    </Box>
+                  </Box>
+                );
+              })}
             </Box>
           </Box>
         )}
