@@ -2157,7 +2157,7 @@ export default function EditEvaluation() {
                 </Grid>
               ))}
 
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <TextField
                   select
                   fullWidth
@@ -2171,7 +2171,7 @@ export default function EditEvaluation() {
                 </TextField>
               </Grid>
 
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <TextField
                   select
                   fullWidth
@@ -2186,7 +2186,7 @@ export default function EditEvaluation() {
                 </TextField>
               </Grid>
 
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12} md={4}>
                 <TextField
                   select
                   fullWidth
