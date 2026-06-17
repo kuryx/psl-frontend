@@ -613,45 +613,43 @@ export default function NewEvaluation() {
                 />
               </Grid>
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Tipo Solicitante"
-                  value={formData.informacionDictamen.tipoSolicitante}
-                  onChange={(e) =>
-                    handleChange("informacionDictamen", "tipoSolicitante", e.target.value)
-                  }
-                >
-                  <MenuItem value="">Seleccione...</MenuItem>
-                  <MenuItem value="EPS">EPS</MenuItem>
-                  <MenuItem value="AFP">AFP</MenuItem>
-                  <MenuItem value="ARL">ARL</MenuItem>
-                  <MenuItem value="Compañía de Seguros">Compañía de Seguros</MenuItem>
-                  <MenuItem value="Otro">Otro</MenuItem>
-                </TextField>
-              </Grid>
+              <Grid item xs={12}>
+                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                  <TextField
+                    select
+                    label="Tipo Solicitante"
+                    value={formData.informacionDictamen.tipoSolicitante}
+                    onChange={(e) =>
+                      handleChange("informacionDictamen", "tipoSolicitante", e.target.value)
+                    }
+                    sx={{ flex: 1, minWidth: 160 }}
+                  >
+                    <MenuItem value="">Seleccione...</MenuItem>
+                    <MenuItem value="EPS">EPS</MenuItem>
+                    <MenuItem value="AFP">AFP</MenuItem>
+                    <MenuItem value="ARL">ARL</MenuItem>
+                    <MenuItem value="Compañía de Seguros">Compañía de Seguros</MenuItem>
+                    <MenuItem value="Otro">Otro</MenuItem>
+                  </TextField>
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Nombre Solicitante"
-                  value={formData.informacionDictamen.nombreSolicitante}
-                  onChange={(e) =>
-                    handleChange("informacionDictamen", "nombreSolicitante", e.target.value)
-                  }
-                />
-              </Grid>
+                  <TextField
+                    label="Nombre Solicitante"
+                    value={formData.informacionDictamen.nombreSolicitante}
+                    onChange={(e) =>
+                      handleChange("informacionDictamen", "nombreSolicitante", e.target.value)
+                    }
+                    sx={{ flex: 2, minWidth: 200 }}
+                  />
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Identificación Solicitante (NIT)"
-                  value={formData.informacionDictamen.identificacionSolicitante}
-                  onChange={(e) =>
-                    handleChange("informacionDictamen", "identificacionSolicitante", e.target.value)
-                  }
-                />
+                  <TextField
+                    label="Identificación Solicitante (NIT)"
+                    value={formData.informacionDictamen.identificacionSolicitante}
+                    onChange={(e) =>
+                      handleChange("informacionDictamen", "identificacionSolicitante", e.target.value)
+                    }
+                    sx={{ flex: 1, minWidth: 180 }}
+                  />
+                </Box>
               </Grid>
 
               <Grid item xs={12} md={6}>
