@@ -1080,65 +1080,61 @@ export default function EditEvaluation() {
                 />
               </Grid>
 
-              <Grid item xs={12} md={3}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Género"
-                  value={formData.paciente.genero}
-                  onChange={(e) => handleChange("paciente", "genero", e.target.value)}
-                >
-                  <MenuItem value="">Seleccione...</MenuItem>
-                  <MenuItem value="Masculino">Masculino</MenuItem>
-                  <MenuItem value="Femenino">Femenino</MenuItem>
-                  <MenuItem value="Otro">Otro</MenuItem>
-                </TextField>
-              </Grid>
+              <Grid item xs={12}>
+                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                  <TextField
+                    select
+                    label="Género"
+                    value={formData.paciente.genero}
+                    onChange={(e) => handleChange("paciente", "genero", e.target.value)}
+                    sx={{ flex: 1, minWidth: 130 }}
+                  >
+                    <MenuItem value="">Seleccione...</MenuItem>
+                    <MenuItem value="Masculino">Masculino</MenuItem>
+                    <MenuItem value="Femenino">Femenino</MenuItem>
+                    <MenuItem value="Otro">Otro</MenuItem>
+                  </TextField>
 
-              <Grid item xs={12} md={3}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Estado Civil"
-                  value={formData.paciente.estadoCivil}
-                  onChange={(e) => handleChange("paciente", "estadoCivil", e.target.value)}
-                >
-                  <MenuItem value="">Seleccione...</MenuItem>
-                  <MenuItem value="Soltero">Soltero</MenuItem>
-                  <MenuItem value="Casado">Casado</MenuItem>
-                  <MenuItem value="Unión libre">Unión libre</MenuItem>
-                  <MenuItem value="Divorciado">Divorciado</MenuItem>
-                  <MenuItem value="Viudo">Viudo</MenuItem>
-                </TextField>
-              </Grid>
+                  <TextField
+                    select
+                    label="Estado Civil"
+                    value={formData.paciente.estadoCivil}
+                    onChange={(e) => handleChange("paciente", "estadoCivil", e.target.value)}
+                    sx={{ flex: 1, minWidth: 140 }}
+                  >
+                    <MenuItem value="">Seleccione...</MenuItem>
+                    <MenuItem value="Soltero">Soltero</MenuItem>
+                    <MenuItem value="Casado">Casado</MenuItem>
+                    <MenuItem value="Unión libre">Unión libre</MenuItem>
+                    <MenuItem value="Divorciado">Divorciado</MenuItem>
+                    <MenuItem value="Viudo">Viudo</MenuItem>
+                  </TextField>
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Escolaridad"
-                  value={formData.paciente.escolaridad}
-                  onChange={(e) => handleChange("paciente", "escolaridad", e.target.value)}
-                >
-                  <MenuItem value="">Seleccione...</MenuItem>
-                  <MenuItem value="Ninguna">Ninguna</MenuItem>
-                  <MenuItem value="Básica primaria">Básica primaria</MenuItem>
-                  <MenuItem value="Básica secundaria">Básica secundaria</MenuItem>
-                  <MenuItem value="Bachillerato">Bachillerato</MenuItem>
-                  <MenuItem value="Técnico">Técnico</MenuItem>
-                  <MenuItem value="Tecnólogo">Tecnólogo</MenuItem>
-                  <MenuItem value="Pregrado">Pregrado</MenuItem>
-                  <MenuItem value="Posgrado">Posgrado</MenuItem>
-                </TextField>
-              </Grid>
+                  <TextField
+                    select
+                    label="Escolaridad"
+                    value={formData.paciente.escolaridad}
+                    onChange={(e) => handleChange("paciente", "escolaridad", e.target.value)}
+                    sx={{ flex: 2, minWidth: 160 }}
+                  >
+                    <MenuItem value="">Seleccione...</MenuItem>
+                    <MenuItem value="Ninguna">Ninguna</MenuItem>
+                    <MenuItem value="Básica primaria">Básica primaria</MenuItem>
+                    <MenuItem value="Básica secundaria">Básica secundaria</MenuItem>
+                    <MenuItem value="Bachillerato">Bachillerato</MenuItem>
+                    <MenuItem value="Técnico">Técnico</MenuItem>
+                    <MenuItem value="Tecnólogo">Tecnólogo</MenuItem>
+                    <MenuItem value="Pregrado">Pregrado</MenuItem>
+                    <MenuItem value="Posgrado">Posgrado</MenuItem>
+                  </TextField>
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Ocupación"
-                  value={formData.paciente.ocupacion}
-                  onChange={(e) => handleChange("paciente", "ocupacion", e.target.value)}
-                />
+                  <TextField
+                    label="Ocupación"
+                    value={formData.paciente.ocupacion}
+                    onChange={(e) => handleChange("paciente", "ocupacion", e.target.value)}
+                    sx={{ flex: 2, minWidth: 160 }}
+                  />
+                </Box>
               </Grid>
 
               <Grid item xs={12} md={8}>
@@ -1276,34 +1272,35 @@ export default function EditEvaluation() {
             <Divider sx={{ mb: 3 }} />
 
             <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Tipo de Vinculación"
-                  value={formData.antecedentesLaborales.tipoVinculacion}
-                  onChange={(e) =>
-                    handleChange("antecedentesLaborales", "tipoVinculacion", e.target.value)
-                  }
-                >
-                  <MenuItem value="">Seleccione...</MenuItem>
-                  <MenuItem value="Empleado">Empleado</MenuItem>
-                  <MenuItem value="Independiente">Independiente</MenuItem>
-                  <MenuItem value="Contratista">Contratista</MenuItem>
-                  <MenuItem value="Pensionado">Pensionado</MenuItem>
-                  <MenuItem value="Desempleado">Desempleado</MenuItem>
-                </TextField>
-              </Grid>
+              <Grid item xs={12}>
+                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                  <TextField
+                    select
+                    label="Tipo de Vinculación"
+                    value={formData.antecedentesLaborales.tipoVinculacion}
+                    onChange={(e) =>
+                      handleChange("antecedentesLaborales", "tipoVinculacion", e.target.value)
+                    }
+                    sx={{ flex: 1, minWidth: 180 }}
+                  >
+                    <MenuItem value="">Seleccione...</MenuItem>
+                    <MenuItem value="Empleado">Empleado</MenuItem>
+                    <MenuItem value="Independiente">Independiente</MenuItem>
+                    <MenuItem value="Contratista">Contratista</MenuItem>
+                    <MenuItem value="Pensionado">Pensionado</MenuItem>
+                    <MenuItem value="Desempleado">Desempleado</MenuItem>
+                  </TextField>
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Trabajo/Empleo"
-                  value={formData.antecedentesLaborales.trabajoEmpleo}
-                  onChange={(e) =>
-                    handleChange("antecedentesLaborales", "trabajoEmpleo", e.target.value)
-                  }
-                />
+                  <TextField
+                    fullWidth
+                    label="Trabajo/Empleo"
+                    value={formData.antecedentesLaborales.trabajoEmpleo}
+                    onChange={(e) =>
+                      handleChange("antecedentesLaborales", "trabajoEmpleo", e.target.value)
+                    }
+                    sx={{ flex: 2, minWidth: 200 }}
+                  />
+                </Box>
               </Grid>
 
               <Grid item xs={12} md={6}>
