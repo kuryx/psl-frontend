@@ -375,10 +375,10 @@ export default function CalculadorPCL({ formData, onChange }) {
 
   // ── Auto-calcular puntos de edad (Sección C) al cambiar la fecha ─────────
   useEffect(() => {
-    const ptos = calcularPuntosEdad(formData.fechaNacimiento);
+    const ptos = calcularPuntosEdad(formData.paciente?.fechaNacimiento);
     if (rolLaboralRef.current.restriccionesEdad === ptos) return;
     onChange(null, 'valoracionRolLaboral', { ...rolLaboralRef.current, restriccionesEdad: ptos });
-  }, [formData.fechaNacimiento, onChange]);
+  }, [formData.paciente?.fechaNacimiento, onChange]);
 
   // ── Cap 13: auto-seleccionar tabla 9.3 y actualizar clase según audiometría ─
   useEffect(() => {
@@ -970,7 +970,7 @@ export default function CalculadorPCL({ formData, onChange }) {
           {(() => {
             const ptos = rolLaboral.restriccionesEdad ?? 0;
             const banda = EDAD_TABLA.find(r => ptos === r.puntos) || EDAD_TABLA.at(-1);
-            const sinFecha = !formData.fechaNacimiento;
+            const sinFecha = !formData.paciente?.fechaNacimiento;
             return (
               <Alert
                 severity={sinFecha ? 'warning' : ptos > 0 ? 'info' : 'success'}

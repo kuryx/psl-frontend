@@ -298,6 +298,7 @@ export default function EvaluationDetail() {
                 <Campo label="Ocupación" value={ev.paciente.ocupacion} md={4} />
                 <Campo label="Ciudad" value={ev.paciente.ciudad} />
                 <Campo label="Dirección" value={ev.paciente.direccion} />
+                <Campo label="Celular / Móvil" value={ev.paciente.celular} md={4} />
                 <Campo label="EPS" value={ev.paciente.eps} md={4} />
                 <Campo label="AFP" value={ev.paciente.afp} md={4} />
                 <Campo label="ARL" value={ev.paciente.arl} md={4} />

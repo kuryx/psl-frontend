@@ -77,6 +77,7 @@ export default function NewEvaluation() {
   const [loadingCIUO, setLoadingCIUO] = useState(false);
   const [uploadingPDF, setUploadingPDF] = useState(false);
   const [pdfSuccess, setPdfSuccess] = useState("");
+  const [pdfsPendientes, setPdfsPendientes] = useState([]); // archivos seleccionados antes de analizar
 
   // Validación de consistencia CIF
   const [consistDialog, setConsistDialog] = useState({ open: false, sugerencias: [] });
@@ -141,6 +142,7 @@ export default function NewEvaluation() {
       direccion: "",
       ciudad: "",
       telefonos: [""],
+      celular: "",
       correoElectronico: "",
       ocupacion: "",
       etapasCicloVital: "Población en edad económicamente activa",
@@ -314,20 +316,38 @@ export default function NewEvaluation() {
     }
   };
 
-  // ✅ CORREGIDO: pdfFormData en lugar de formData, callback en setFormData
-  const handlePDFUpload = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  // Seleccionar archivos PDF (sin analizar todavía)
+  const handlePDFSeleccion = (event) => {
+    const archivos = Array.from(event.target.files || []);
+    if (archivos.length === 0) return;
 
-    if (file.type !== "application/pdf") {
+    const invalidos = archivos.filter((f) => f.type !== "application/pdf");
+    if (invalidos.length > 0) {
       setError("Solo se permiten archivos PDF");
       return;
     }
-
-    if (file.size > 10 * 1024 * 1024) {
-      setError("El archivo es demasiado grande. Máximo 10MB");
+    const grandes = archivos.filter((f) => f.size > 10 * 1024 * 1024);
+    if (grandes.length > 0) {
+      setError("Cada archivo debe pesar máximo 10 MB");
       return;
     }
+    setError("");
+    setPdfSuccess("");
+    setPdfsPendientes((prev) => {
+      const existentes = prev.map((f) => f.name);
+      const nuevos = archivos.filter((f) => !existentes.includes(f.name));
+      return [...prev, ...nuevos].slice(0, 5); // máximo 5 archivos
+    });
+    event.target.value = "";
+  };
+
+  const eliminarPdfPendiente = (nombre) => {
+    setPdfsPendientes((prev) => prev.filter((f) => f.name !== nombre));
+  };
+
+  // Analizar los PDFs seleccionados con IA
+  const handleAnalizarPDFs = async () => {
+    if (pdfsPendientes.length === 0) return;
 
     setUploadingPDF(true);
     setError("");
@@ -335,19 +355,16 @@ export default function NewEvaluation() {
 
     try {
       const pdfFormData = new FormData();
-      pdfFormData.append("pdf", file);
+      pdfsPendientes.forEach((archivo) => pdfFormData.append("pdfs", archivo));
 
-      console.log("📤 Subiendo PDF para análisis con IA...");
+      console.log(`📤 Analizando ${pdfsPendientes.length} PDF(s) con IA...`);
 
       const response = await api.post("/evaluations/extract-historia", pdfFormData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      console.log("✅ Respuesta de IA recibida:", response.data);
-
       const { data } = response.data;
 
-      // ✅ Usa callback para no sobreescribir el estado del formulario
       setFormData((prev) => ({
         ...prev,
         historialClinico: data.historialClinico || prev.historialClinico,
@@ -359,13 +376,12 @@ export default function NewEvaluation() {
       }));
 
       setPdfSuccess(
-        `✅ Historia clínica extraída exitosamente. ${data.conceptosMedicos?.length || 0} conceptos médicos encontrados.`
+        `Historia clínica extraída de ${pdfsPendientes.length} documento(s). ${data.conceptosMedicos?.length || 0} conceptos médicos encontrados.`
       );
-
-      event.target.value = "";
+      setPdfsPendientes([]);
     } catch (error) {
       console.error("Error extrayendo historia clínica:", error);
-      setError(error.response?.data?.message || "Error al procesar el PDF. Intenta de nuevo.");
+      setError(error.response?.data?.message || "Error al procesar los PDFs. Intenta de nuevo.");
     } finally {
       setUploadingPDF(false);
     }
@@ -1052,6 +1068,16 @@ export default function NewEvaluation() {
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
+                  label="Celular / Móvil"
+                  value={formData.paciente.celular}
+                  onChange={(e) => handleChange("paciente", "celular", e.target.value)}
+                  placeholder="Ej: 3001234567"
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
                   label="Correo Electrónico"
                   type="email"
                   value={formData.paciente.correoElectronico}
@@ -1364,18 +1390,57 @@ export default function NewEvaluation() {
                 </Typography>
               </Box>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Sube un PDF de historia clínica o dictamen previo y la IA extraerá automáticamente
-                la información clínica relevante.
+                Adjunta hasta 5 PDFs (historia clínica, dictámenes previos, etc.) y luego haz clic en
+                <strong> Analizar</strong>. La IA consolidará la información de todos los documentos.
               </Typography>
-              <Button
-                variant="contained"
-                component="label"
-                startIcon={uploadingPDF ? null : <UploadFileIcon />}
-                disabled={uploadingPDF}
-              >
-                {uploadingPDF ? "Procesando con IA..." : "Subir PDF"}
-                <input type="file" hidden accept="application/pdf" onChange={handlePDFUpload} />
-              </Button>
+
+              {/* Archivos seleccionados */}
+              {pdfsPendientes.length > 0 && (
+                <Box sx={{ mb: 1.5, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                  {pdfsPendientes.map((f) => (
+                    <Chip
+                      key={f.name}
+                      label={f.name}
+                      size="small"
+                      onDelete={() => eliminarPdfPendiente(f.name)}
+                      color="primary"
+                      variant="outlined"
+                    />
+                  ))}
+                </Box>
+              )}
+
+              <Box display="flex" gap={1} flexWrap="wrap">
+                <Button
+                  variant="outlined"
+                  component="label"
+                  startIcon={<UploadFileIcon />}
+                  disabled={uploadingPDF || pdfsPendientes.length >= 5}
+                  size="small"
+                >
+                  {pdfsPendientes.length === 0 ? "Adjuntar PDF(s)" : "Agregar más"}
+                  <input
+                    type="file"
+                    hidden
+                    accept="application/pdf"
+                    multiple
+                    onChange={handlePDFSeleccion}
+                  />
+                </Button>
+
+                {pdfsPendientes.length > 0 && (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleAnalizarPDFs}
+                    disabled={uploadingPDF}
+                    startIcon={uploadingPDF ? null : <AutoAwesomeIcon />}
+                  >
+                    {uploadingPDF ? "Analizando con IA..." : `Analizar (${pdfsPendientes.length})`}
+                  </Button>
+                )}
+              </Box>
+
               {pdfSuccess && (
                 <Alert severity="success" sx={{ mt: 2 }}>
                   {pdfSuccess}

@@ -77,6 +77,7 @@ export default function EditEvaluation() {
   // Upload IA (extracción historia clínica)
   const [uploadingPDF, setUploadingPDF] = useState(false);
   const [pdfSuccess, setPdfSuccess] = useState("");
+  const [pdfsPendientes, setPdfsPendientes] = useState([]);
 
   // Búsqueda de enfermedades CIE-11
   const [busquedaPrincipal, setBusquedaPrincipal] = useState("");
@@ -142,6 +143,7 @@ export default function EditEvaluation() {
       direccion: "",
       ciudad: "",
       telefonos: [""],
+      celular: "",
       correoElectronico: "",
       ocupacion: "",
       etapasCicloVital: "",
@@ -277,6 +279,7 @@ export default function EditEvaluation() {
           direccion: data.paciente?.direccion || "",
           ciudad: data.paciente?.ciudad || "",
           telefonos: data.paciente?.telefonos?.length > 0 ? data.paciente.telefonos : [""],
+          celular: data.paciente?.celular || "",
           correoElectronico: data.paciente?.correoElectronico || "",
           ocupacion: data.paciente?.ocupacion || "",
           etapasCicloVital:
@@ -409,15 +412,32 @@ export default function EditEvaluation() {
   };
 
   // ── Extracción IA desde PDF ─────────────────────────────────────
-  const handlePDFUpload = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (file.type !== "application/pdf") { setError("Solo se permiten archivos PDF"); return; }
-    if (file.size > 10 * 1024 * 1024) { setError("El archivo es demasiado grande. Máximo 10MB"); return; }
+  const handlePDFSeleccion = (event) => {
+    const archivos = Array.from(event.target.files || []);
+    if (archivos.length === 0) return;
+    const invalidos = archivos.filter((f) => f.type !== "application/pdf");
+    if (invalidos.length > 0) { setError("Solo se permiten archivos PDF"); return; }
+    const grandes = archivos.filter((f) => f.size > 10 * 1024 * 1024);
+    if (grandes.length > 0) { setError("Cada archivo debe pesar máximo 10 MB"); return; }
+    setError(""); setPdfSuccess("");
+    setPdfsPendientes((prev) => {
+      const existentes = prev.map((f) => f.name);
+      const nuevos = archivos.filter((f) => !existentes.includes(f.name));
+      return [...prev, ...nuevos].slice(0, 5);
+    });
+    event.target.value = "";
+  };
+
+  const eliminarPdfPendiente = (nombre) => {
+    setPdfsPendientes((prev) => prev.filter((f) => f.name !== nombre));
+  };
+
+  const handleAnalizarPDFs = async () => {
+    if (pdfsPendientes.length === 0) return;
     setUploadingPDF(true); setError(""); setPdfSuccess("");
     try {
       const pdfFormData = new FormData();
-      pdfFormData.append("pdf", file);
+      pdfsPendientes.forEach((archivo) => pdfFormData.append("pdfs", archivo));
       const response = await api.post("/evaluations/extract-historia", pdfFormData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -430,10 +450,10 @@ export default function EditEvaluation() {
         procesoRehabilitacion: data.procesoRehabilitacion || prev.procesoRehabilitacion,
         observaciones: data.observaciones || prev.observaciones,
       }));
-      setPdfSuccess(`✅ Historia clínica extraída. ${data.conceptosMedicos?.length || 0} conceptos médicos encontrados.`);
-      event.target.value = "";
+      setPdfSuccess(`Historia clínica extraída de ${pdfsPendientes.length} documento(s). ${data.conceptosMedicos?.length || 0} conceptos médicos encontrados.`);
+      setPdfsPendientes([]);
     } catch (err) {
-      setError(err.response?.data?.message || "Error al procesar el PDF.");
+      setError(err.response?.data?.message || "Error al procesar los PDFs.");
     } finally { setUploadingPDF(false); }
   };
 
@@ -1166,6 +1186,16 @@ export default function EditEvaluation() {
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
+                  label="Celular / Móvil"
+                  value={formData.paciente.celular}
+                  onChange={(e) => handleChange("paciente", "celular", e.target.value)}
+                  placeholder="Ej: 3001234567"
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
                   label="Correo Electrónico"
                   type="email"
                   value={formData.paciente.correoElectronico}
@@ -1450,19 +1480,41 @@ export default function EditEvaluation() {
               <Typography variant="h6" fontWeight="bold">
                 Información Clínica y Conceptos
               </Typography>
-              <Box display="flex" alignItems="center" gap={1}>
+              <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+                {pdfsPendientes.map((f) => (
+                  <Chip
+                    key={f.name}
+                    label={f.name}
+                    size="small"
+                    onDelete={() => eliminarPdfPendiente(f.name)}
+                    color="primary"
+                    variant="outlined"
+                  />
+                ))}
                 {pdfSuccess && <Typography variant="caption" color="success.main">{pdfSuccess}</Typography>}
                 <Button
                   variant="outlined"
                   size="small"
                   component="label"
-                  startIcon={uploadingPDF ? <CircularProgress size={14} /> : <AutoAwesomeIcon />}
-                  disabled={uploadingPDF}
+                  startIcon={<UploadFileIcon />}
+                  disabled={uploadingPDF || pdfsPendientes.length >= 5}
                   color="secondary"
                 >
-                  {uploadingPDF ? "Procesando..." : "Extraer con IA"}
-                  <input type="file" hidden accept="application/pdf" onChange={handlePDFUpload} />
+                  Adjuntar PDF
+                  <input type="file" hidden accept="application/pdf" multiple onChange={handlePDFSeleccion} />
                 </Button>
+                {pdfsPendientes.length > 0 && (
+                  <Button
+                    variant="contained"
+                    size="small"
+                    color="secondary"
+                    onClick={handleAnalizarPDFs}
+                    disabled={uploadingPDF}
+                    startIcon={uploadingPDF ? <CircularProgress size={14} /> : <AutoAwesomeIcon />}
+                  >
+                    {uploadingPDF ? "Analizando..." : `Analizar (${pdfsPendientes.length})`}
+                  </Button>
+                )}
               </Box>
             </Box>
             <Divider sx={{ mb: 3 }} />
