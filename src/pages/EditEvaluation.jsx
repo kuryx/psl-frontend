@@ -2157,52 +2157,50 @@ export default function EditEvaluation() {
                 </Grid>
               ))}
 
-              <Grid item xs={12} md={4}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Calificación Integral"
-                  value={formData.calificacionIntegral}
-                  onChange={(e) => handleChange(null, "calificacionIntegral", e.target.value)}
-                >
-                  <MenuItem value="Sí">Sí</MenuItem>
-                  <MenuItem value="No">No</MenuItem>
-                  <MenuItem value="No aplica">No aplica</MenuItem>
-                </TextField>
-              </Grid>
+              <Grid item xs={12}>
+                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                  <TextField
+                    select
+                    label="Calificación Integral"
+                    value={formData.calificacionIntegral}
+                    onChange={(e) => handleChange(null, "calificacionIntegral", e.target.value)}
+                    sx={{ flex: 1, minWidth: 160 }}
+                  >
+                    <MenuItem value="Sí">Sí</MenuItem>
+                    <MenuItem value="No">No</MenuItem>
+                    <MenuItem value="No aplica">No aplica</MenuItem>
+                  </TextField>
 
-              <Grid item xs={12} md={4}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Decisión frente a JRCI"
-                  value={formData.decisionJRCI}
-                  onChange={(e) => handleChange(null, "decisionJRCI", e.target.value)}
-                >
-                  <MenuItem value="">Seleccione...</MenuItem>
-                  <MenuItem value="Confirmar">Confirmar</MenuItem>
-                  <MenuItem value="Modificar">Modificar</MenuItem>
-                  <MenuItem value="Revocar">Revocar</MenuItem>
-                </TextField>
-              </Grid>
+                  <TextField
+                    select
+                    label="Decisión frente a JRCI"
+                    value={formData.decisionJRCI}
+                    onChange={(e) => handleChange(null, "decisionJRCI", e.target.value)}
+                    sx={{ flex: 1, minWidth: 200 }}
+                  >
+                    <MenuItem value="">Seleccione...</MenuItem>
+                    <MenuItem value="Confirmar">Confirmar</MenuItem>
+                    <MenuItem value="Modificar">Modificar</MenuItem>
+                    <MenuItem value="Revocar">Revocar</MenuItem>
+                  </TextField>
 
-              <Grid item xs={12} md={4}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Estado del Dictamen"
-                  value={formData.estado}
-                  onChange={(e) => handleChange(null, "estado", e.target.value)}
-                  helperText="Use el panel de workflow en la vista de detalle para avanzar instancias"
-                >
-                  <MenuItem value="borrador">Borrador</MenuItem>
-                  <MenuItem value="primera_oportunidad">1a Oportunidad</MenuItem>
-                  <MenuItem value="segunda_oportunidad">2a Oportunidad</MenuItem>
-                  <MenuItem value="primera_instancia">Junta Regional</MenuItem>
-                  <MenuItem value="segunda_instancia">Junta Nacional</MenuItem>
-                  <MenuItem value="aprobado">Ejecutoriado</MenuItem>
-                  <MenuItem value="recalificacion">Recalificación</MenuItem>
-                </TextField>
+                  <TextField
+                    select
+                    label="Estado del Dictamen"
+                    value={formData.estado}
+                    onChange={(e) => handleChange(null, "estado", e.target.value)}
+                    helperText="Use el panel de workflow en la vista de detalle para avanzar instancias"
+                    sx={{ flex: 1, minWidth: 160 }}
+                  >
+                    <MenuItem value="borrador">Borrador</MenuItem>
+                    <MenuItem value="primera_oportunidad">1a Oportunidad</MenuItem>
+                    <MenuItem value="segunda_oportunidad">2a Oportunidad</MenuItem>
+                    <MenuItem value="primera_instancia">Junta Regional</MenuItem>
+                    <MenuItem value="segunda_instancia">Junta Nacional</MenuItem>
+                    <MenuItem value="aprobado">Ejecutoriado</MenuItem>
+                    <MenuItem value="recalificacion">Recalificación</MenuItem>
+                  </TextField>
+                </Box>
               </Grid>
             </Grid>
           </Box>

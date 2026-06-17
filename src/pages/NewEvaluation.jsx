@@ -2108,50 +2108,46 @@ export default function NewEvaluation() {
                 </Grid>
               ))}
 
-              <Grid item xs={12} md={4}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Calificación Integral"
-                  value={formData.calificacionIntegral}
-                  onChange={(e) =>
-                    handleChange(null, "calificacionIntegral", e.target.value)
-                  }
-                >
-                  <MenuItem value="Sí">Sí</MenuItem>
-                  <MenuItem value="No">No</MenuItem>
-                  <MenuItem value="No aplica">No aplica</MenuItem>
-                </TextField>
-              </Grid>
+              <Grid item xs={12}>
+                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                  <TextField
+                    select
+                    label="Calificación Integral"
+                    value={formData.calificacionIntegral}
+                    onChange={(e) => handleChange(null, "calificacionIntegral", e.target.value)}
+                    sx={{ flex: 1, minWidth: 160 }}
+                  >
+                    <MenuItem value="Sí">Sí</MenuItem>
+                    <MenuItem value="No">No</MenuItem>
+                    <MenuItem value="No aplica">No aplica</MenuItem>
+                  </TextField>
 
-              <Grid item xs={12} md={4}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Decisión frente a JRCI"
-                  value={formData.decisionJRCI}
-                  onChange={(e) => handleChange(null, "decisionJRCI", e.target.value)}
-                >
-                  <MenuItem value="">Seleccione...</MenuItem>
-                  <MenuItem value="Confirmar">Confirmar</MenuItem>
-                  <MenuItem value="Modificar">Modificar</MenuItem>
-                  <MenuItem value="Revocar">Revocar</MenuItem>
-                </TextField>
-              </Grid>
+                  <TextField
+                    select
+                    label="Decisión frente a JRCI"
+                    value={formData.decisionJRCI}
+                    onChange={(e) => handleChange(null, "decisionJRCI", e.target.value)}
+                    sx={{ flex: 1, minWidth: 200 }}
+                  >
+                    <MenuItem value="">Seleccione...</MenuItem>
+                    <MenuItem value="Confirmar">Confirmar</MenuItem>
+                    <MenuItem value="Modificar">Modificar</MenuItem>
+                    <MenuItem value="Revocar">Revocar</MenuItem>
+                  </TextField>
 
-              <Grid item xs={12} md={4}>
-                <TextField
-                  select
-                  fullWidth
-                  label="Estado del Dictamen"
-                  value={formData.estado}
-                  onChange={(e) => handleChange(null, "estado", e.target.value)}
-                >
-                  <MenuItem value="borrador">Borrador</MenuItem>
-                  <MenuItem value="completada">Completada</MenuItem>
-                  <MenuItem value="revisada">Revisada</MenuItem>
-                  <MenuItem value="aprobada">Aprobada</MenuItem>
-                </TextField>
+                  <TextField
+                    select
+                    label="Estado del Dictamen"
+                    value={formData.estado}
+                    onChange={(e) => handleChange(null, "estado", e.target.value)}
+                    sx={{ flex: 1, minWidth: 160 }}
+                  >
+                    <MenuItem value="borrador">Borrador</MenuItem>
+                    <MenuItem value="completada">Completada</MenuItem>
+                    <MenuItem value="revisada">Revisada</MenuItem>
+                    <MenuItem value="aprobada">Aprobada</MenuItem>
+                  </TextField>
+                </Box>
               </Grid>
             </Grid>
           </Box>
