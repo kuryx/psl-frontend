@@ -285,6 +285,9 @@ export default function EvaluationDetail() {
                   <Campo label="Instancia" value={ev.informacionDictamen.instanciaActual} />
                   <Campo label="Solicitante" value={ev.informacionDictamen.nombreSolicitante} />
                   <Campo label="Tipo solicitante" value={ev.informacionDictamen.tipoSolicitante} />
+                  <Campo label="Teléfono Fijo" value={ev.informacionDictamen.telefonoSolicitante} md={4} />
+                  <Campo label="Celular / Móvil" value={ev.informacionDictamen.celularSolicitante} md={4} />
+                  <Campo label="Ciudad" value={ev.informacionDictamen.ciudadSolicitante} md={4} />
                 </Seccion>
               )}
               <Seccion titulo="Datos del Paciente">

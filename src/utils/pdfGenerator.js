@@ -52,6 +52,17 @@ const fmtFecha = (f) => {
 
 const v = (x) => (x !== undefined && x !== null && x !== "") ? String(x) : "N/A";
 
+// ─── Línea justificada (distribuye espacio extra entre palabras) ───
+const drawLineJ = (doc, line, x, maxWidth, y, isLast) => {
+  if (isLast) { doc.text(line, x, y); return; }
+  const words = line.trim().split(/\s+/);
+  if (words.length <= 1) { doc.text(line, x, y); return; }
+  const totalW = words.reduce((s, w) => s + doc.getTextWidth(w), 0);
+  const gap = (maxWidth - totalW) / (words.length - 1);
+  let cx = x;
+  words.forEach(w => { doc.text(w, cx, y); cx += doc.getTextWidth(w) + gap; });
+};
+
 // ─── Cargar logo (ratio fijo 1280×997 px) ────────────────────────
 const LOGO_RATIO = 1280 / 997; // ancho / alto — dimensiones reales del archivo
 
@@ -369,12 +380,15 @@ export const generarPDFDictamen = async (evaluacion) => {
         { content: "Identificación",          styles: { fontStyle: "bold", fillColor: C.header } }, v(evaluacion.informacionDictamen?.identificacionSolicitante),
       ],
       [
-        { content: "Teléfono",               styles: { fontStyle: "bold", fillColor: C.header } }, v(evaluacion.informacionDictamen?.telefonoSolicitante),
-        { content: "Ciudad",                 styles: { fontStyle: "bold", fillColor: C.header } }, v(evaluacion.informacionDictamen?.ciudadSolicitante),
+        { content: "Teléfono Fijo",          styles: { fontStyle: "bold", fillColor: C.header } }, v(evaluacion.informacionDictamen?.telefonoSolicitante),
+        { content: "Celular / Móvil",        styles: { fontStyle: "bold", fillColor: C.header } }, v(evaluacion.informacionDictamen?.celularSolicitante),
       ],
       [
+        { content: "Ciudad",                 styles: { fontStyle: "bold", fillColor: C.header } }, v(evaluacion.informacionDictamen?.ciudadSolicitante),
         { content: "Dirección",              styles: { fontStyle: "bold", fillColor: C.header } }, v(evaluacion.informacionDictamen?.direccionSolicitante),
-        { content: "Correo Electrónico",     styles: { fontStyle: "bold", fillColor: C.header } }, v(evaluacion.informacionDictamen?.correoElectronicoSolicitante),
+      ],
+      [
+        { content: "Correo Electrónico",     styles: { fontStyle: "bold", fillColor: C.header } }, { content: v(evaluacion.informacionDictamen?.correoElectronicoSolicitante), colSpan: 3 },
       ],
     ],
     columnStyles: colStyle4,
@@ -392,8 +406,9 @@ export const generarPDFDictamen = async (evaluacion) => {
        { content: "Identificación",        styles: { fontStyle: "bold", fillColor: C.header } }, v(ec.identificacion)],
       [{ content: "Dirección",             styles: { fontStyle: "bold", fillColor: C.header } }, v(ec.direccion),
        { content: "Ciudad",               styles: { fontStyle: "bold", fillColor: C.header } }, v(ec.ciudad)],
-      [{ content: "Teléfono",             styles: { fontStyle: "bold", fillColor: C.header } }, v(ec.telefono),
-       { content: "Correo Electrónico",   styles: { fontStyle: "bold", fillColor: C.header } }, v(ec.correoElectronico)],
+      [{ content: "Teléfono Fijo",        styles: { fontStyle: "bold", fillColor: C.header } }, v(ec.telefono),
+       { content: "Celular / Móvil",     styles: { fontStyle: "bold", fillColor: C.header } }, v(ec.celular)],
+      [{ content: "Correo Electrónico",  styles: { fontStyle: "bold", fillColor: C.header } }, { content: v(ec.correoElectronico), colSpan: 3 }],
     ],
     columnStyles: colStyle4,
   });
@@ -471,9 +486,9 @@ export const generarPDFDictamen = async (evaluacion) => {
     y += 8;
     doc.setFont(getPdfFont(), "normal");
     const lines = doc.splitTextToSize(al.descripcionCargos, CW);
-    for (const linea of lines) {
+    for (let i = 0; i < lines.length; i++) {
       if (y > 271) y = nuevaPag(doc, logo, numDict);
-      doc.text(linea, MARGIN_L, y);
+      drawLineJ(doc, lines[i], MARGIN_L, CW, y, i === lines.length - 1);
       y += 4.5;
     }
     y += 3;
@@ -553,9 +568,9 @@ export const generarPDFDictamen = async (evaluacion) => {
       doc.setTextColor(...C.dark);
       const lines = doc.splitTextToSize(hallazgos, CW - 6);
       let ty = y + 5;
-      for (const ln of lines) {
+      for (let i = 0; i < lines.length; i++) {
         if (ty > y + boxH - 4) break;
-        doc.text(ln, MARGIN_L + 3, ty);
+        drawLineJ(doc, lines[i], MARGIN_L + 3, CW - 6, ty, i === lines.length - 1);
         ty += 4.5;
       }
     } else {
@@ -583,9 +598,10 @@ export const generarPDFDictamen = async (evaluacion) => {
   doc.setFont(getPdfFont(), "normal");
   if (evaluacion.resumenCaso) {
     const rcLines = doc.splitTextToSize(stripHtml(evaluacion.resumenCaso), CW);
-    for (const ln of rcLines) {
+    for (let i = 0; i < rcLines.length; i++) {
       if (y > 271) y = nuevaPag(doc, logo, numDict);
-      doc.text(ln, MARGIN_L, y); y += 4.5;
+      drawLineJ(doc, rcLines[i], MARGIN_L, CW, y, i === rcLines.length - 1);
+      y += 4.5;
     }
   } else {
     doc.setFont(getPdfFont(), "italic");
@@ -604,9 +620,10 @@ export const generarPDFDictamen = async (evaluacion) => {
   doc.setFont(getPdfFont(), "normal");
   if (evaluacion.calificacionPrimeraOportunidad) {
     const cpLines = doc.splitTextToSize(stripHtml(evaluacion.calificacionPrimeraOportunidad), CW);
-    for (const ln of cpLines) {
+    for (let i = 0; i < cpLines.length; i++) {
       if (y > 271) y = nuevaPag(doc, logo, numDict);
-      doc.text(ln, MARGIN_L, y); y += 4.5;
+      drawLineJ(doc, cpLines[i], MARGIN_L, CW, y, i === cpLines.length - 1);
+      y += 4.5;
     }
   } else {
     doc.setFont(getPdfFont(), "italic");
@@ -624,9 +641,10 @@ export const generarPDFDictamen = async (evaluacion) => {
   y += 5;
   doc.setFont(getPdfFont(), "normal");
   const hcLines = doc.splitTextToSize(stripHtml(evaluacion.historialClinico || "No registrado."), CW);
-  for (const ln of hcLines) {
+  for (let i = 0; i < hcLines.length; i++) {
     if (y > 271) y = nuevaPag(doc, logo, numDict);
-    doc.text(ln, MARGIN_L, y); y += 4.5;
+    drawLineJ(doc, hcLines[i], MARGIN_L, CW, y, i === hcLines.length - 1);
+    y += 4.5;
   }
   y += 5;
 
@@ -658,9 +676,9 @@ export const generarPDFDictamen = async (evaluacion) => {
       doc.setFont(getPdfFont(), "normal");
       if (con.resumen) {
         const cLines = doc.splitTextToSize(stripHtml(con.resumen), CW);
-        for (const ln of cLines) {
+        for (let i = 0; i < cLines.length; i++) {
           if (y > 271) y = nuevaPag(doc, logo, numDict);
-          doc.text(ln, MARGIN_L, y);
+          drawLineJ(doc, cLines[i], MARGIN_L, CW, y, i === cLines.length - 1);
           y += 4.5;
         }
       }
@@ -683,8 +701,11 @@ export const generarPDFDictamen = async (evaluacion) => {
   y += 5;
   if (evaluacion.descripcionRehabilitacion) {
     const drLines = doc.splitTextToSize(evaluacion.descripcionRehabilitacion, CW);
-    doc.text(drLines, MARGIN_L, y);
-    y += drLines.length * 4.5;
+    for (let i = 0; i < drLines.length; i++) {
+      if (y > 271) y = nuevaPag(doc, logo, numDict);
+      drawLineJ(doc, drLines[i], MARGIN_L, CW, y, i === drLines.length - 1);
+      y += 4.5;
+    }
   }
   y += 5;
 
@@ -711,9 +732,9 @@ export const generarPDFDictamen = async (evaluacion) => {
       doc.setFont(getPdfFont(), "normal");
       if (val.valoracion) {
         const vLines = doc.splitTextToSize(stripHtml(val.valoracion), CW);
-        for (const ln of vLines) {
+        for (let i = 0; i < vLines.length; i++) {
           if (y > 271) y = nuevaPag(doc, logo, numDict);
-          doc.text(ln, MARGIN_L, y);
+          drawLineJ(doc, vLines[i], MARGIN_L, CW, y, i === vLines.length - 1);
           y += 4.5;
         }
       }
@@ -775,9 +796,10 @@ export const generarPDFDictamen = async (evaluacion) => {
     const indent = bloque.style === "bullet" ? MARGIN_L + 3 : MARGIN_L;
     const ancho  = bloque.style === "bullet" ? CW - 3 : CW;
     const fLines = doc.splitTextToSize(bloque.text, ancho);
-    for (const fln of fLines) {
+    for (let i = 0; i < fLines.length; i++) {
       if (y > 271) y = nuevaPag(doc, logo, numDict);
-      doc.text(fln, indent, y); y += 4.5;
+      drawLineJ(doc, fLines[i], indent, ancho, y, i === fLines.length - 1);
+      y += 4.5;
     }
     y += (bloque.style === "heading" ? 2 : 1);
   }
@@ -791,7 +813,7 @@ export const generarPDFDictamen = async (evaluacion) => {
   doc.setFont(getPdfFont(), "normal");
   const ppText = "Para efectos de calificación, el Manual Único para la Calificación de la Pérdida de Capacidad Laboral y Ocupacional, se distribuye porcentualmente de la siguiente manera: El rango de calificación oscila entre un mínimo de cero por ciento (0%) y un máximo de cien por ciento (100%), correspondiendo, cincuenta por ciento (50%) al Título Primero (Valoración de las deficiencias) y cincuenta por ciento (50%) al Título Segundo (Valoración del rol laboral, rol ocupacional y otras áreas ocupacionales) del Anexo Técnico.";
   const ppLines = doc.splitTextToSize(ppText, CW);
-  for (const ln of ppLines) { if (y > 271) y = nuevaPag(doc, logo, numDict); doc.text(ln, MARGIN_L, y); y += 4.5; }
+  for (let i = 0; i < ppLines.length; i++) { if (y > 271) y = nuevaPag(doc, logo, numDict); drawLineJ(doc, ppLines[i], MARGIN_L, CW, y, i === ppLines.length - 1); y += 4.5; }
   y += 3;
 
   doc.setFont(getPdfFont(), "italic");
@@ -816,7 +838,7 @@ export const generarPDFDictamen = async (evaluacion) => {
   if (y > 258) y = nuevaPag(doc, logo, numDict);
   const ninosText = "El valor de la pérdida de capacidad ocupacional para niños, niñas (mayores de 3 años) y adolescentes será: valor final de la deficiencia + valor final del Título Segundo.";
   const ninosLines = doc.splitTextToSize(ninosText, CW);
-  for (const ln of ninosLines) { if (y > 271) y = nuevaPag(doc, logo, numDict); doc.text(ln, MARGIN_L, y); y += 4.5; }
+  for (let i = 0; i < ninosLines.length; i++) { if (y > 271) y = nuevaPag(doc, logo, numDict); drawLineJ(doc, ninosLines[i], MARGIN_L, CW, y, i === ninosLines.length - 1); y += 4.5; }
   y += 3;
 
   if (y > 255) y = nuevaPag(doc, logo, numDict);
@@ -848,7 +870,7 @@ export const generarPDFDictamen = async (evaluacion) => {
     "Otros fundamentos de derecho que se tuvieron en cuenta para el presente dictamen se encuentran en las siguientes normas:",
     CW
   );
-  for (const ln of otrosFundLines) { if (y > 271) y = nuevaPag(doc, logo, numDict); doc.text(ln, MARGIN_L, y); y += 4.5; }
+  for (let i = 0; i < otrosFundLines.length; i++) { if (y > 271) y = nuevaPag(doc, logo, numDict); drawLineJ(doc, otrosFundLines[i], MARGIN_L, CW, y, i === otrosFundLines.length - 1); y += 4.5; }
   y += 2;
   doc.setFont(getPdfFont(), "normal");
   const OTRAS_NORMAS = [
@@ -862,7 +884,7 @@ export const generarPDFDictamen = async (evaluacion) => {
   for (const norma of OTRAS_NORMAS) {
     if (y > 260) y = nuevaPag(doc, logo, numDict);
     const nLines = doc.splitTextToSize(norma, CW);
-    for (const ln of nLines) { if (y > 271) y = nuevaPag(doc, logo, numDict); doc.text(ln, MARGIN_L, y); y += 4.5; }
+    for (let i = 0; i < nLines.length; i++) { if (y > 271) y = nuevaPag(doc, logo, numDict); drawLineJ(doc, nLines[i], MARGIN_L, CW, y, i === nLines.length - 1); y += 4.5; }
   }
   y += 5;
 
@@ -881,9 +903,10 @@ export const generarPDFDictamen = async (evaluacion) => {
     doc.setFontSize(8.5);
     doc.setFont(getPdfFont(), "normal");
     const acLines = doc.splitTextToSize(stripHtml(evaluacion.analisisConclusiones), CW);
-    for (const ln of acLines) {
+    for (let i = 0; i < acLines.length; i++) {
       if (y > 271) y = nuevaPag(doc, logo, numDict);
-      doc.text(ln, MARGIN_L, y); y += 4.5;
+      drawLineJ(doc, acLines[i], MARGIN_L, CW, y, i === acLines.length - 1);
+      y += 4.5;
     }
     y += 5;
   } else {
@@ -953,9 +976,10 @@ export const generarPDFDictamen = async (evaluacion) => {
     "En consecuencia, notifíquese el dictamen emitido a las partes interesadas en los términos del artículo 41 del Decreto 1352 de 2013.",
     CW
   );
-  notifLines.forEach(ln => {
+  notifLines.forEach((ln, i) => {
     if (y > 271) y = nuevaPag(doc, logo, numDict);
-    doc.text(ln, MARGIN_L, y); y += 4.5;
+    drawLineJ(doc, ln, MARGIN_L, CW, y, i === notifLines.length - 1);
+    y += 4.5;
   });
   doc.setFont(getPdfFont(), "normal");
   y += 5;
@@ -1547,8 +1571,12 @@ export const generarPDFDictamen = async (evaluacion) => {
     y += 8;
     doc.setFont(getPdfFont(), "normal");
     const sLines = doc.splitTextToSize(evaluacion.sustentacionFechaEstructuracion, CW);
-    doc.text(sLines, MARGIN_L, y);
-    y += sLines.length * 4.5 + 5;
+    for (let i = 0; i < sLines.length; i++) {
+      if (y > 271) y = nuevaPag(doc, logo, numDict);
+      drawLineJ(doc, sLines[i], MARGIN_L, CW, y, i === sLines.length - 1);
+      y += 4.5;
+    }
+    y += 5;
   }
 
   y += 2;
@@ -1564,9 +1592,10 @@ export const generarPDFDictamen = async (evaluacion) => {
   doc.setFont(getPdfFont(), "normal");
   if (evaluacion.observaciones) {
     const oLines = doc.splitTextToSize(evaluacion.observaciones, CW);
-    for (const ln of oLines) {
+    for (let i = 0; i < oLines.length; i++) {
       if (y > 271) y = nuevaPag(doc, logo, numDict);
-      doc.text(ln, MARGIN_L, y); y += 4.5;
+      drawLineJ(doc, oLines[i], MARGIN_L, CW, y, i === oLines.length - 1);
+      y += 4.5;
     }
     y += 4;
   } else {
@@ -1583,9 +1612,10 @@ export const generarPDFDictamen = async (evaluacion) => {
   if (evaluacion.recomendaciones) {
     if (y > 255) y = nuevaPag(doc, logo, numDict);
     const rLines = doc.splitTextToSize(evaluacion.recomendaciones, CW);
-    for (const ln of rLines) {
+    for (let i = 0; i < rLines.length; i++) {
       if (y > 271) y = nuevaPag(doc, logo, numDict);
-      doc.text(ln, MARGIN_L, y); y += 4.5;
+      drawLineJ(doc, rLines[i], MARGIN_L, CW, y, i === rLines.length - 1);
+      y += 4.5;
     }
     y += 7;
   } else {

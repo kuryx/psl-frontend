@@ -103,6 +103,7 @@ export default function NewEvaluation() {
       nombreSolicitante: "",
       identificacionSolicitante: "",
       telefonoSolicitante: "",
+      celularSolicitante: "",
       ciudadSolicitante: "",
       direccionSolicitante: "",
       correoElectronicoSolicitante: "",
@@ -115,6 +116,7 @@ export default function NewEvaluation() {
       direccion: usuarioActual?.entidadCalificadora?.direccion || "",
       ciudad: usuarioActual?.entidadCalificadora?.ciudad || "",
       telefono: usuarioActual?.entidadCalificadora?.telefono || "",
+      celular: usuarioActual?.entidadCalificadora?.celular || "",
       correoElectronico: usuarioActual?.entidadCalificadora?.correoElectronico || "",
     },
 
@@ -652,26 +654,33 @@ export default function NewEvaluation() {
                 </Box>
               </Grid>
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Teléfono Solicitante"
-                  value={formData.informacionDictamen.telefonoSolicitante}
-                  onChange={(e) =>
-                    handleChange("informacionDictamen", "telefonoSolicitante", e.target.value)
-                  }
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Ciudad Solicitante"
-                  value={formData.informacionDictamen.ciudadSolicitante}
-                  onChange={(e) =>
-                    handleChange("informacionDictamen", "ciudadSolicitante", e.target.value)
-                  }
-                />
+              <Grid item xs={12}>
+                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                  <TextField
+                    label="Teléfono Fijo Solicitante"
+                    value={formData.informacionDictamen.telefonoSolicitante}
+                    onChange={(e) =>
+                      handleChange("informacionDictamen", "telefonoSolicitante", e.target.value)
+                    }
+                    sx={{ flex: 1, minWidth: 180 }}
+                  />
+                  <TextField
+                    label="Celular / Móvil Solicitante"
+                    value={formData.informacionDictamen.celularSolicitante}
+                    onChange={(e) =>
+                      handleChange("informacionDictamen", "celularSolicitante", e.target.value)
+                    }
+                    sx={{ flex: 1, minWidth: 180 }}
+                  />
+                  <TextField
+                    label="Ciudad Solicitante"
+                    value={formData.informacionDictamen.ciudadSolicitante}
+                    onChange={(e) =>
+                      handleChange("informacionDictamen", "ciudadSolicitante", e.target.value)
+                    }
+                    sx={{ flex: 1, minWidth: 160 }}
+                  />
+                </Box>
               </Grid>
 
               <Grid item xs={12} md={6}>
@@ -757,15 +766,25 @@ export default function NewEvaluation() {
                 />
               </Grid>
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Teléfono"
-                  value={formData.entidadCalificadora.telefono}
-                  onChange={(e) =>
-                    handleChange("entidadCalificadora", "telefono", e.target.value)
-                  }
-                />
+              <Grid item xs={12}>
+                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                  <TextField
+                    label="Teléfono Fijo"
+                    value={formData.entidadCalificadora.telefono}
+                    onChange={(e) =>
+                      handleChange("entidadCalificadora", "telefono", e.target.value)
+                    }
+                    sx={{ flex: 1, minWidth: 180 }}
+                  />
+                  <TextField
+                    label="Celular / Móvil"
+                    value={formData.entidadCalificadora.celular}
+                    onChange={(e) =>
+                      handleChange("entidadCalificadora", "celular", e.target.value)
+                    }
+                    sx={{ flex: 1, minWidth: 180 }}
+                  />
+                </Box>
               </Grid>
 
               <Grid item xs={12} md={6}>
