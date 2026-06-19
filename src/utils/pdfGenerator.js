@@ -54,9 +54,13 @@ const v = (x) => (x !== undefined && x !== null && x !== "") ? String(x) : "N/A"
 
 // ─── Línea justificada (distribuye espacio extra entre palabras) ───
 const drawLineJ = (doc, line, x, maxWidth, y, isLast) => {
-  if (isLast) { doc.text(line, x, y); return; }
   const words = line.trim().split(/\s+/);
-  if (words.length <= 1) { doc.text(line, x, y); return; }
+  const lineWidth = doc.getTextWidth(line.trim());
+  // No justificar: última línea, una sola palabra, o línea corta (< 85% del ancho) — estándar tipográfico
+  if (isLast || words.length <= 1 || lineWidth < maxWidth * 0.85) {
+    doc.text(line, x, y);
+    return;
+  }
   const totalW = words.reduce((s, w) => s + doc.getTextWidth(w), 0);
   const gap = (maxWidth - totalW) / (words.length - 1);
   let cx = x;
@@ -1723,6 +1727,24 @@ export const generarPDFDictamen = async (evaluacion) => {
     },
   });
   y = doc.lastAutoTable.finalY + 5;
+
+  // ── TÉCNICA DE PERITAJE ──────────────────────────────────────────
+  if (evaluacion.tecnicaPeritaje) {
+    if (y > 240) y = nuevaPag(doc, logo, numDict);
+    y = secTitle(doc, "12. TÉCNICA DE PERITAJE", y);
+    doc.setFont(getPdfFont(), "bold");
+    doc.setFontSize(9);
+    doc.text("Normas, Técnicas y Bibliografía Utilizadas:", MARGIN_L, y);
+    y += 6;
+    doc.setFont(getPdfFont(), "normal");
+    const tpLines = doc.splitTextToSize(evaluacion.tecnicaPeritaje, CW);
+    for (let i = 0; i < tpLines.length; i++) {
+      if (y > 275) y = nuevaPag(doc, logo, numDict);
+      drawLineJ(doc, tpLines[i], MARGIN_L, CW, y, i === tpLines.length - 1);
+      y += 4.5;
+    }
+    y += 4;
+  }
 
   // ────────────────────────────────────────────────────────────────
   // APLICAR PIE DE PÁGINA EN TODAS LAS PÁGINAS

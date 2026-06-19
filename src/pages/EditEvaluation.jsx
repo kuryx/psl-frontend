@@ -202,6 +202,7 @@ export default function EditEvaluation() {
     observaciones: "",
     recomendaciones: "",
     sustentacionFechaEstructuracion: "",
+    tecnicaPeritaje: "",
     muerte: false,
     fechaDefuncion: "",
     ayudaTercerosABC: false,
@@ -347,6 +348,7 @@ export default function EditEvaluation() {
         observaciones: data.observaciones || "",
         recomendaciones: data.recomendaciones || "",
         sustentacionFechaEstructuracion: data.sustentacionFechaEstructuracion || "",
+        tecnicaPeritaje: data.tecnicaPeritaje || "",
         muerte: data.muerte || false,
         fechaDefuncion: formatearFecha(data.fechaDefuncion),
         ayudaTercerosABC: data.ayudaTercerosABC || false,
@@ -2134,12 +2136,29 @@ export default function EditEvaluation() {
 
               <Grid item xs={12}>
                 <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+                  Técnica de Peritaje
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                <TextField
+                  fullWidth
+                  label="Normas, Técnicas y Bibliografía Utilizadas"
+                  multiline
+                  rows={6}
+                  placeholder="Ej: Manual Único de Calificación de Pérdida de Capacidad Laboral (Decreto 1507/2014), CIE-11, CIF (OMS 2001), ..."
+                  value={formData.tecnicaPeritaje}
+                  onChange={(e) => handleChange(null, "tecnicaPeritaje", e.target.value)}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
                   Información Adicional
                 </Typography>
                 <Divider sx={{ mb: 2 }} />
               </Grid>
 
               {[
+                { key: "muerte", label: "Muerte" },
                 { key: "ayudaTercerosABC", label: "Ayuda de terceros para actividades básicas cotidianas (ABC) y AVD" },
                 { key: "ayudaTercerosDecisiones", label: "Ayuda de terceros para toma de decisiones" },
                 { key: "requiereDispositivosApoyo", label: "Requiere dispositivos de apoyo" },
@@ -2170,6 +2189,19 @@ export default function EditEvaluation() {
                   </Box>
                 </Grid>
               ))}
+
+              {formData.muerte && (
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Fecha de Defunción"
+                    type="date"
+                    value={formData.fechaDefuncion}
+                    onChange={(e) => handleChange(null, "fechaDefuncion", e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+              )}
 
               <Grid item xs={12}>
                 <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
