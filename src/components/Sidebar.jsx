@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Drawer,
@@ -11,8 +11,10 @@ import {
   Typography,
   Divider,
   Avatar,
-  IconButton,
   Collapse,
+  IconButton,
+  Tooltip,
+  Badge,
 } from "@mui/material";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import AssignmentIcon from "@mui/icons-material/Assignment";
@@ -20,9 +22,16 @@ import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LogoutIcon from "@mui/icons-material/Logout";
-import MenuIcon from "@mui/icons-material/Menu";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
+import PeopleIcon from "@mui/icons-material/People";
+import HistoryIcon from "@mui/icons-material/History";
+import ContactsIcon from "@mui/icons-material/Contacts";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import { canCreate, isAdmin } from "../utils/auth";
+import { usePreferences } from "../contexts/PreferencesContext";
+import { obtenerAlertas } from "../services/evaluationService";
 
 const DRAWER_WIDTH = 280;
 
@@ -30,9 +39,29 @@ export default function Sidebar({ mobileOpen, handleDrawerToggle }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [evaluacionesOpen, setEvaluacionesOpen] = useState(true);
+  const [alertasCount, setAlertasCount] = useState(0);
+  const { preferences, updatePreferences } = usePreferences();
+  const isDark = preferences.theme === "dark";
 
   // Obtener usuario del localStorage
   const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+  // Cargar conteo de alertas urgentes al montar y cada 5 minutos
+  useEffect(() => {
+    const cargarAlertas = () => {
+      obtenerAlertas()
+        .then(({ alertas }) => {
+          const urgentes = alertas.filter(
+            (a) => a.urgencia === "vencida" || a.urgencia === "critica" || a.urgencia === "urgente"
+          ).length;
+          setAlertasCount(urgentes);
+        })
+        .catch(() => {});
+    };
+    cargarAlertas();
+    const intervalo = setInterval(cargarAlertas, 5 * 60 * 1000);
+    return () => clearInterval(intervalo);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -40,33 +69,40 @@ export default function Sidebar({ mobileOpen, handleDrawerToggle }) {
     navigate("/");
   };
 
+  const evaluacionesSubmenu = [
+    ...(canCreate()
+      ? [{ text: "Nueva Evaluación", icon: <AddCircleOutlineIcon />, path: "/evaluations/new" }]
+      : []),
+    {
+      text: "Historial",
+      icon: (
+        <Badge badgeContent={alertasCount || null} color="error" max={99}>
+          <ListAltIcon />
+        </Badge>
+      ),
+      path: "/evaluations",
+    },
+    { text: "Pacientes", icon: <ContactsIcon />, path: "/pacientes" },
+  ];
+
   const menuItems = [
     {
       text: "Dashboard",
-      icon: <DashboardIcon />,
+      icon: (
+        <Badge badgeContent={alertasCount || null} color="error" max={99}>
+          <DashboardIcon />
+        </Badge>
+      ),
       path: "/dashboard",
     },
-    {
-      text: "Evaluaciones PCL",
-      icon: <AssignmentIcon />,
-      submenu: [
-        {
-          text: "Nueva Evaluación",
-          icon: <AddCircleOutlineIcon />,
-          path: "/evaluations/new",
-        },
-        {
-          text: "Historial",
-          icon: <ListAltIcon />,
-          path: "/evaluations",
-        },
-      ],
-    },
-    {
-      text: "Mi Cuenta",
-      icon: <AccountCircleIcon />,
-      path: "/cuenta",
-    },
+    { text: "Evaluaciones PCL", icon: <AssignmentIcon />, submenu: evaluacionesSubmenu },
+    { text: "Mi Cuenta", icon: <AccountCircleIcon />, path: "/cuenta" },
+    ...(isAdmin()
+      ? [
+          { text: "Gestión de Usuarios", icon: <PeopleIcon />, path: "/admin/usuarios" },
+          { text: "Log de Auditoría",    icon: <HistoryIcon />, path: "/admin/auditoria" },
+        ]
+      : []),
   ];
 
   const isActive = (path) => location.pathname === path;
@@ -74,13 +110,23 @@ export default function Sidebar({ mobileOpen, handleDrawerToggle }) {
   const drawer = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Header */}
-      <Box sx={{ p: 3, bgcolor: "primary.main", color: "white" }}>
-        <Typography variant="h6" fontWeight="bold">
-          Sistema PCL
-        </Typography>
-        <Typography variant="body2" sx={{ opacity: 0.9 }}>
-          Gestión de Evaluaciones
-        </Typography>
+      <Box
+        sx={{
+          p: 2,
+          bgcolor: "white",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+        }}
+      >
+        <Box
+          component="img"
+          src="/logo-md.jpeg"
+          alt="Logo"
+          sx={{ width: "100%", maxWidth: 220, height: "auto", objectFit: "contain" }}
+        />
       </Box>
 
       <Divider />
@@ -194,10 +240,19 @@ export default function Sidebar({ mobileOpen, handleDrawerToggle }) {
             <Typography variant="body2" fontWeight="bold" noWrap>
               {user.name || "Usuario"}
             </Typography>
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {user.email || "email@example.com"}
+            <Typography variant="caption" color="text.secondary" noWrap display="block">
+              {user.role || ""}
             </Typography>
           </Box>
+          <Tooltip title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}>
+            <IconButton
+              size="small"
+              onClick={() => updatePreferences({ theme: isDark ? "light" : "dark" })}
+              sx={{ color: isDark ? "warning.light" : "text.secondary" }}
+            >
+              {isDark ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
         </Box>
 
         <ListItemButton

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Box, AppBar, Toolbar, IconButton, Typography } from "@mui/material";
+import { Box, AppBar, Toolbar, IconButton } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import Sidebar, { DRAWER_WIDTH } from "./Sidebar";
 
@@ -29,9 +29,12 @@ export default function Layout({ children }) {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap>
-            Sistema PCL
-          </Typography>
+          <Box
+            component="img"
+            src="/logo-md.jpeg"
+            alt="Logo"
+            sx={{ height: 36, objectFit: "contain" }}
+          />
         </Toolbar>
       </AppBar>
 

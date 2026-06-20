@@ -6,9 +6,13 @@ import NewEvaluation from "./pages/NewEvaluation";
 import EvaluationsList from "./pages/EvaluationsList";
 import EvaluationDetail from "./pages/EvaluationDetail";
 import EditEvaluation from "./pages/EditEvaluation";
+import AdminUsers from "./pages/AdminUsers";
+import AdminAudit from "./pages/AdminAudit";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import Layout from "./components/Layout";
 import MiCuenta from "./pages/MiCuenta";
+import Pacientes from "./pages/Pacientes";
+import { ROLES } from "./utils/auth";
 
 function App() {
   return (
@@ -74,11 +78,44 @@ function App() {
       />
 
       <Route
+        path="/pacientes"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Pacientes />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/cuenta"
         element={
           <ProtectedRoute>
             <Layout>
               <MiCuenta />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/usuarios"
+        element={
+          <ProtectedRoute roles={[ROLES.ADMIN]}>
+            <Layout>
+              <AdminUsers />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/auditoria"
+        element={
+          <ProtectedRoute roles={[ROLES.ADMIN]}>
+            <Layout>
+              <AdminAudit />
             </Layout>
           </ProtectedRoute>
         }
