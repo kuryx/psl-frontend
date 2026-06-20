@@ -167,6 +167,7 @@ export default function NewEvaluation() {
       direccionEmpresa: "",
       ciudadEmpresa: "",
       telefonoEmpresa: "",
+      celularEmpresa: "",
       fechaIngreso: "",
       antiguedad: "",
       descripcionCargos: "",
@@ -1338,6 +1339,17 @@ export default function NewEvaluation() {
                   value={formData.antecedentesLaborales.telefonoEmpresa}
                   onChange={(e) =>
                     handleChange("antecedentesLaborales", "telefonoEmpresa", e.target.value)
+                  }
+                />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Celular / Móvil Empresa"
+                  value={formData.antecedentesLaborales.celularEmpresa}
+                  onChange={(e) =>
+                    handleChange("antecedentesLaborales", "celularEmpresa", e.target.value)
                   }
                 />
               </Grid>
