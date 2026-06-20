@@ -988,13 +988,17 @@ export default function EditEvaluation() {
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
+                  select
                   label="Especialidad / Cargo"
                   value={formData.medicoCalificador.especialidad}
                   onChange={(e) =>
                     handleChange("medicoCalificador", "especialidad", e.target.value)
                   }
-                  placeholder="Ej: Médico Laboral, Médico Ocupacional..."
-                />
+                >
+                  {["Médico Calificador", "Médico Coordinador", "Médico Evaluador"].map((op) => (
+                    <MenuItem key={op} value={op}>{op}</MenuItem>
+                  ))}
+                </TextField>
               </Grid>
 
               <Grid item xs={12} md={6}>
