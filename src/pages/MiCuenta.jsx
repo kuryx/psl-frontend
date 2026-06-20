@@ -207,10 +207,13 @@ export default function MiCuenta() {
             </Alert>
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
-                <TextField fullWidth label="Especialidad / Cargo" value={profesional.especialidad}
+                <TextField fullWidth select label="Especialidad / Cargo" value={profesional.especialidad}
                   onChange={(e) => setProfesional({ ...profesional, especialidad: e.target.value })}
-                  disabled={!editandoProfesional}
-                  placeholder="Ej: Médico Laboral, Médico Ocupacional..." />
+                  disabled={!editandoProfesional}>
+                  {["Médico Calificador", "Médico Coordinador", "Médico Evaluador"].map((op) => (
+                    <MenuItem key={op} value={op}>{op}</MenuItem>
+                  ))}
+                </TextField>
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField fullWidth label="Registro / Tarjeta Profesional" value={profesional.registroProfesional}
