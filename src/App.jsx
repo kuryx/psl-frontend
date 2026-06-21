@@ -9,6 +9,8 @@ import EditEvaluation from "./pages/EditEvaluation";
 import AdminUsers from "./pages/AdminUsers";
 import AdminAudit from "./pages/AdminAudit";
 import VerificarEmail from "./pages/VerificarEmail";
+import Planes from "./pages/Planes";
+import PagoResultado from "./pages/PagoResultado";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import Layout from "./components/Layout";
 import MiCuenta from "./pages/MiCuenta";
@@ -22,6 +24,9 @@ function App() {
       <Route path="/" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/verificar-email/:token" element={<VerificarEmail />} />
+      <Route path="/pago-resultado" element={<PagoResultado />} />
+
+
 
       {/* Rutas protegidas (con Layout y Sidebar) */}
       <Route
@@ -118,6 +123,17 @@ function App() {
           <ProtectedRoute roles={[ROLES.ADMIN]}>
             <Layout>
               <AdminAudit />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/planes"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Planes />
             </Layout>
           </ProtectedRoute>
         }

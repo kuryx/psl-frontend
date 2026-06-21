@@ -1,6 +1,7 @@
-import { Box, Chip, LinearProgress, Tooltip, Typography } from "@mui/material";
+import { Box, Chip, LinearProgress, Tooltip, Typography, Button } from "@mui/material";
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
 import StarIcon from "@mui/icons-material/Star";
+import { useNavigate } from "react-router-dom";
 import { getPlan, evaluacionesMesRestantes, LIMITES_PLAN, isPlanActivo } from "../utils/auth";
 
 const COLOR = {
@@ -16,6 +17,7 @@ const LABEL = {
 };
 
 export default function PlanBadge({ collapsed = false }) {
+  const navigate = useNavigate();
   const plan = getPlan();
   const activo = isPlanActivo();
   const restantes = evaluacionesMesRestantes();
@@ -69,6 +71,16 @@ export default function PlanBadge({ collapsed = false }) {
             <Typography variant="caption" color={c.text} display="block" mt={0.3}>
               Evaluaciones ilimitadas
             </Typography>
+          )}
+
+          {plan === "free" && (
+            <Button
+              fullWidth size="small" variant="contained" color="primary"
+              sx={{ mt: 1, fontSize: 11 }}
+              onClick={() => navigate("/planes")}
+            >
+              Mejorar plan
+            </Button>
           )}
         </>
       )}
