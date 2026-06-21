@@ -67,6 +67,12 @@ const drawLineJ = (doc, line, x, maxWidth, y, isLast) => {
   words.forEach(w => { doc.text(w, cx, y); cx += doc.getTextWidth(w) + gap; });
 };
 
+// ─── Normaliza texto para justificación: une saltos de línea → espacio ──
+const normText = (t) => {
+  const s = stripHtml(t || "");
+  return s.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+};
+
 // ─── Cargar logo (ratio fijo 1280×997 px) ────────────────────────
 const LOGO_RATIO = 1280 / 997; // ancho / alto — dimensiones reales del archivo
 
@@ -678,8 +684,9 @@ export const generarPDFDictamen = async (evaluacion) => {
       doc.text("Resumen:", MARGIN_L, y);
       y += 4.5;
       doc.setFont(getPdfFont(), "normal");
+      doc.setFontSize(8.5);
       if (con.resumen) {
-        const cLines = doc.splitTextToSize(stripHtml(con.resumen), CW);
+        const cLines = doc.splitTextToSize(normText(con.resumen), CW);
         for (let i = 0; i < cLines.length; i++) {
           if (y > 271) y = nuevaPag(doc, logo, numDict);
           drawLineJ(doc, cLines[i], MARGIN_L, CW, y, i === cLines.length - 1);
@@ -704,7 +711,7 @@ export const generarPDFDictamen = async (evaluacion) => {
   doc.text(`Proceso de rehabilitación: ${v(evaluacion.procesoRehabilitacion)}`, MARGIN_L, y);
   y += 5;
   if (evaluacion.descripcionRehabilitacion) {
-    const drLines = doc.splitTextToSize(evaluacion.descripcionRehabilitacion, CW);
+    const drLines = doc.splitTextToSize(normText(evaluacion.descripcionRehabilitacion), CW);
     for (let i = 0; i < drLines.length; i++) {
       if (y > 271) y = nuevaPag(doc, logo, numDict);
       drawLineJ(doc, drLines[i], MARGIN_L, CW, y, i === drLines.length - 1);
@@ -734,8 +741,9 @@ export const generarPDFDictamen = async (evaluacion) => {
       doc.text("Resumen:", MARGIN_L, y);
       y += 4.5;
       doc.setFont(getPdfFont(), "normal");
+      doc.setFontSize(8.5);
       if (val.valoracion) {
-        const vLines = doc.splitTextToSize(stripHtml(val.valoracion), CW);
+        const vLines = doc.splitTextToSize(normText(val.valoracion), CW);
         for (let i = 0; i < vLines.length; i++) {
           if (y > 271) y = nuevaPag(doc, logo, numDict);
           drawLineJ(doc, vLines[i], MARGIN_L, CW, y, i === vLines.length - 1);
