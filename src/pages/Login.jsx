@@ -118,7 +118,19 @@ export default function Login() {
               {loading ? "Iniciando sesión..." : "Entrar"}
             </Button>
 
-            <Box textAlign="center" mt={2}>
+            <Box textAlign="center" mt={1}>
+              <Link
+                component="button"
+                variant="body2"
+                onClick={() => navigate("/recuperar-password")}
+                type="button"
+                disabled={loading}
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </Box>
+
+            <Box textAlign="center" mt={1}>
               <Link
                 component="button"
                 variant="body2"

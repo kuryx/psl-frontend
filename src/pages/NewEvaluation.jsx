@@ -460,7 +460,13 @@ export default function NewEvaluation() {
 
       navigate(nuevaId ? `/evaluations/${nuevaId}` : "/evaluations");
     } catch (error) {
-      setError(error.response?.data?.message || "Error al crear evaluación");
+      const status = error.response?.status;
+      const msg = error.response?.data?.message || "Error al crear evaluación";
+      if (status === 403 && msg.toLowerCase().includes("plan")) {
+        setError("__LIMITE_PLAN__");
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -483,11 +489,20 @@ export default function NewEvaluation() {
           </Typography>
         </Box>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
+        {error === "__LIMITE_PLAN__" ? (
+          <Alert severity="warning" sx={{ mb: 2 }}
+            action={
+              <Button color="inherit" size="small" onClick={() => navigate("/planes")}>
+                Ver planes
+              </Button>
+            }
+          >
+            Alcanzaste el límite de 3 evaluaciones del plan gratuito este mes.
+            Actualiza tu plan para continuar.
           </Alert>
-        )}
+        ) : error ? (
+          <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+        ) : null}
 
         {/* Tabs */}
         <Tabs

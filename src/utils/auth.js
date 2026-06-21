@@ -57,7 +57,7 @@ export const canManageWorkflow = () => hasAnyRole([ROLES.ADMIN, ROLES.COORDINADO
 export const PLANES = { FREE: "free", PROFESIONAL: "profesional", EMPRESARIAL: "empresarial" };
 
 export const LIMITES_PLAN = {
-  free:        { evaluacionesMes: 5,  ia: false },
+  free:        { evaluacionesMes: 3,  ia: false },
   profesional: { evaluacionesMes: null, ia: true },
   empresarial: { evaluacionesMes: null, ia: true },
 };

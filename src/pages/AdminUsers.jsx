@@ -179,7 +179,7 @@ export default function AdminUsers() {
                       <TableCell align="center">
                         <Typography variant="caption">
                           {user.evaluacionesMes ?? 0}
-                          {user.plan === "free" ? " / 5" : ""}
+                          {user.plan === "free" ? " / 3" : ""}
                         </Typography>
                       </TableCell>
 
@@ -266,7 +266,7 @@ export default function AdminUsers() {
 
           {planDialog.plan === "free" && (
             <Alert severity="info" sx={{ mt: 1 }}>
-              El plan gratuito limita a 5 evaluaciones por mes y no incluye IA.
+              El plan gratuito limita a 3 evaluaciones por mes y no incluye IA.
             </Alert>
           )}
         </DialogContent>

@@ -11,6 +11,8 @@ import AdminAudit from "./pages/AdminAudit";
 import VerificarEmail from "./pages/VerificarEmail";
 import Planes from "./pages/Planes";
 import PagoResultado from "./pages/PagoResultado";
+import RecuperarPassword from "./pages/RecuperarPassword";
+import NuevaContrasena from "./pages/NuevaContrasena";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import Layout from "./components/Layout";
 import MiCuenta from "./pages/MiCuenta";
@@ -25,6 +27,8 @@ function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/verificar-email/:token" element={<VerificarEmail />} />
       <Route path="/pago-resultado" element={<PagoResultado />} />
+      <Route path="/recuperar-password" element={<RecuperarPassword />} />
+      <Route path="/nueva-contrasena/:token" element={<NuevaContrasena />} />
 
 
 

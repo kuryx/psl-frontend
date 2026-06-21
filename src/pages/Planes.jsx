@@ -20,7 +20,7 @@ const PLANES = [
     icon: null,
     descripcion: "Para probar el sistema",
     features: [
-      { texto: "5 evaluaciones por mes",         incluido: true  },
+      { texto: "3 evaluaciones por mes",           incluido: true  },
       { texto: "PDF del dictamen",                incluido: true  },
       { texto: "Historial de evaluaciones",       incluido: true  },
       { texto: "Análisis con IA",                 incluido: false },
