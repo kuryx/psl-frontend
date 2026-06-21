@@ -1745,7 +1745,8 @@ export const generarPDFDictamen = async (evaluacion) => {
     doc.text("Normas, Técnicas y Bibliografía Utilizadas:", MARGIN_L, y);
     y += 6;
     doc.setFont(getPdfFont(), "normal");
-    const tpLines = doc.splitTextToSize(evaluacion.tecnicaPeritaje, CW);
+    doc.setFontSize(8.5);
+    const tpLines = doc.splitTextToSize(normText(evaluacion.tecnicaPeritaje), CW);
     for (let i = 0; i < tpLines.length; i++) {
       if (y > 275) y = nuevaPag(doc, logo, numDict);
       drawLineJ(doc, tpLines[i], MARGIN_L, CW, y, i === tpLines.length - 1);
