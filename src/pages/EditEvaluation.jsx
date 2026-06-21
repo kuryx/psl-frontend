@@ -212,6 +212,7 @@ export default function EditEvaluation() {
     enfermedadDegenerativa: false,
     enfermedadProgresiva: false,
     calificacionIntegral: "No aplica",
+    tipoJunta: "",
     decisionJRCI: "",
     estado: "borrador",
   });
@@ -358,6 +359,7 @@ export default function EditEvaluation() {
         enfermedadDegenerativa: data.enfermedadDegenerativa || false,
         enfermedadProgresiva: data.enfermedadProgresiva || false,
         calificacionIntegral: data.calificacionIntegral || "No aplica",
+        tipoJunta: data.tipoJunta || "",
         decisionJRCI: data.decisionJRCI || "",
         estado: data.estado || "borrador",
       });
@@ -2223,16 +2225,34 @@ export default function EditEvaluation() {
 
                   <TextField
                     select
-                    label="Decisión frente a JRCI"
-                    value={formData.decisionJRCI}
-                    onChange={(e) => handleChange(null, "decisionJRCI", e.target.value)}
-                    sx={{ flex: 1, minWidth: 200 }}
+                    label="Tipo de Junta"
+                    value={formData.tipoJunta}
+                    onChange={(e) => {
+                      handleChange(null, "tipoJunta", e.target.value);
+                      handleChange(null, "decisionJRCI", "");
+                    }}
+                    sx={{ flex: 1, minWidth: 220 }}
                   >
                     <MenuItem value="">Seleccione...</MenuItem>
-                    <MenuItem value="Confirmar">Confirmar</MenuItem>
-                    <MenuItem value="Modificar">Modificar</MenuItem>
-                    <MenuItem value="Revocar">Revocar</MenuItem>
+                    <MenuItem value="JRCI">Junta Regional de Calificación de Invalidez (JRCI)</MenuItem>
+                    <MenuItem value="JNCI">Junta Nacional de Calificación de Invalidez (JNCI)</MenuItem>
+                    <MenuItem value="Otro/a">Otro/a</MenuItem>
                   </TextField>
+
+                  {formData.tipoJunta && (
+                    <TextField
+                      select
+                      label={`Decisión frente a ${formData.tipoJunta}`}
+                      value={formData.decisionJRCI}
+                      onChange={(e) => handleChange(null, "decisionJRCI", e.target.value)}
+                      sx={{ flex: 1, minWidth: 220 }}
+                    >
+                      <MenuItem value="">Seleccione...</MenuItem>
+                      <MenuItem value="Confirmar">Confirmar</MenuItem>
+                      <MenuItem value="Modificar">Modificar</MenuItem>
+                      <MenuItem value="Revocar">Revocar</MenuItem>
+                    </TextField>
+                  )}
 
                   <TextField
                     select
