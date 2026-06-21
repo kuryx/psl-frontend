@@ -14,3 +14,8 @@ export const resetPasswordUsuario = async (id) => {
   const response = await api.post(`/admin/users/${id}/reset-password`);
   return response.data;
 };
+
+export const cambiarPlanUsuario = async (id, plan, diasVigencia) => {
+  const response = await api.put(`/admin/users/${id}/plan`, { plan, diasVigencia });
+  return response.data;
+};

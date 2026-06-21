@@ -8,6 +8,7 @@ import EvaluationDetail from "./pages/EvaluationDetail";
 import EditEvaluation from "./pages/EditEvaluation";
 import AdminUsers from "./pages/AdminUsers";
 import AdminAudit from "./pages/AdminAudit";
+import VerificarEmail from "./pages/VerificarEmail";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import Layout from "./components/Layout";
 import MiCuenta from "./pages/MiCuenta";
@@ -20,6 +21,7 @@ function App() {
       {/* Rutas públicas (sin Layout) */}
       <Route path="/" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/verificar-email/:token" element={<VerificarEmail />} />
 
       {/* Rutas protegidas (con Layout y Sidebar) */}
       <Route
