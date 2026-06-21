@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import PlanBadge from "./PlanBadge";
 import {
   Drawer,
   List,
@@ -254,6 +255,8 @@ export default function Sidebar({ mobileOpen, handleDrawerToggle }) {
             </IconButton>
           </Tooltip>
         </Box>
+
+        <PlanBadge />
 
         <ListItemButton
           onClick={handleLogout}

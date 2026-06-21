@@ -52,3 +52,34 @@ export const canCreate = () => hasAnyRole([ROLES.ADMIN, ROLES.MEDICO]);
 export const canEdit = () => hasAnyRole([ROLES.ADMIN, ROLES.MEDICO]);
 export const canDelete = () => hasAnyRole([ROLES.ADMIN, ROLES.MEDICO]);
 export const canManageWorkflow = () => hasAnyRole([ROLES.ADMIN, ROLES.COORDINADOR, ROLES.MEDICO]);
+
+// ── Plan / suscripción ──────────────────────────────────────────────
+export const PLANES = { FREE: "free", PROFESIONAL: "profesional", EMPRESARIAL: "empresarial" };
+
+export const LIMITES_PLAN = {
+  free:        { evaluacionesMes: 5,  ia: false },
+  profesional: { evaluacionesMes: null, ia: true },
+  empresarial: { evaluacionesMes: null, ia: true },
+};
+
+export const getPlan = () => getCurrentUser()?.plan || "free";
+export const isPlanActivo = () => {
+  const user = getCurrentUser();
+  if (!user) return false;
+  if (user.plan === "free") return true;
+  if (!user.planVence) return true;
+  return new Date() < new Date(user.planVence);
+};
+export const puedeUsarIA = () => {
+  if (isAdmin()) return true;
+  const plan = getPlan();
+  return LIMITES_PLAN[plan]?.ia === true && isPlanActivo();
+};
+export const evaluacionesMesRestantes = () => {
+  if (isAdmin()) return null;
+  const user = getCurrentUser();
+  const plan = getPlan();
+  const limite = LIMITES_PLAN[plan]?.evaluacionesMes;
+  if (limite === null) return null;
+  return Math.max(0, limite - (user?.evaluacionesMes || 0));
+};
